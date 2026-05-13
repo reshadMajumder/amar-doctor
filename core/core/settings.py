@@ -56,6 +56,7 @@ INSTALLED_APPS = [
     'triage',
     'appointments',
     'payments',
+    'wallets',
 ]
 
 MIDDLEWARE = [

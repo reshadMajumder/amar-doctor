@@ -6,8 +6,9 @@ from django.conf import settings
 from django.views.decorators.csrf import csrf_exempt
 from django.utils.decorators import method_decorator
 from .serializers import CreatePaymentSerializer, PaymentDetailSerializer
-from .models import Payment
+from .models import PaymentTransaction
 from .services import get_adapter
+from .services.escrow_service import EscrowService
 from appointments.models import Appointment
 
 class CreatePaymentView(generics.CreateAPIView):
@@ -26,7 +27,7 @@ class CreatePaymentView(generics.CreateAPIView):
         
         payment = serializer.save()
         # Refetch with select_related 
-        payment = Payment.objects.select_related('user', 'appointment').get(id=payment.id)
+        payment = PaymentTransaction.objects.select_related('user', 'appointment').get(id=payment.id)
 
         adapter = get_adapter('sslcommerz')
 
@@ -41,7 +42,7 @@ class CreatePaymentView(generics.CreateAPIView):
         try:
             res = adapter.init_payment(payment, return_urls=return_urls, ipn_url=ipn_url)
         except Exception as e:
-            payment.status = Payment.STATUS_FAILED
+            payment.status = PaymentTransaction.STATUS_FAILED
             payment.save()
             return Response({"detail": "Failed to initialize payment", "error": str(e)},
                             status=status.HTTP_502_BAD_GATEWAY)
@@ -53,7 +54,7 @@ class CreatePaymentView(generics.CreateAPIView):
                 "payment_url": res.get('GatewayPageURL')
             })
         else:
-            payment.status = Payment.STATUS_FAILED
+            payment.status = PaymentTransaction.STATUS_FAILED
             payment.save()
             return Response({"detail": "Payment initialization failed", "provider_response": res}, status=400)
 
@@ -71,29 +72,28 @@ class PaymentWebhookView(APIView):
         if not tran_id:
             return Response({"detail": "tran_id missing"}, status=400)
 
+        # In a real system, tran_id would be our PaymentTransaction ID
+        # For simulation, we might receive it as an integer or UUID string
         try:
-            payment = Payment.objects.select_related('appointment').get(id=tran_id)
-        except Payment.DoesNotExist:
-            return Response({"detail": "payment not found"}, status=404)
+            payment_tx = PaymentTransaction.objects.select_related('appointment').get(id=tran_id)
+        except (PaymentTransaction.DoesNotExist, ValueError):
+            return Response({"detail": "payment transaction not found"}, status=404)
 
-        if payment.status == Payment.STATUS_SUCCESS:
+        if payment_tx.status == PaymentTransaction.STATUS_PAID_HELD:
             return Response({"detail": "already processed"}, status=200)
 
         if status_received in ('VALID', 'SUCCESS'):
-            payment.status = Payment.STATUS_SUCCESS
-            payment.transaction_id = info.get('val_id') or data.get('tran_id') or ''
-            payment.val_id = info.get('val_id')
-            payment.save()
-
-            # Update appointment payment status
-            appointment = payment.appointment
-            appointment.payment_status = 'paid_held' # Held in escrow until completion/release
-            appointment.save()
-
-            return Response({"detail": "payment confirmed"}, status=200)
+            # Use EscrowService to handle the logic
+            EscrowService.hold_payment(
+                appointment=payment_tx.appointment,
+                transaction_id=data.get('tran_id'), # Gateway transaction ID
+                val_id=info.get('val_id'),
+                metadata=data
+            )
+            return Response({"detail": "payment confirmed and held in escrow"}, status=200)
         else:
-            payment.status = Payment.STATUS_FAILED
-            payment.save()
+            payment_tx.status = PaymentTransaction.STATUS_FAILED
+            payment_tx.save()
             return Response({"detail": "payment failed"}, status=200)
 
 class PaymentSuccessView(generics.GenericAPIView):
@@ -118,9 +118,9 @@ class PaymentsListView(generics.ListAPIView):
     def get_queryset(self):
         user = self.request.user
         if user.role == 'admin':
-            queryset = Payment.objects.select_related('user', 'appointment').all()
+            queryset = PaymentTransaction.objects.select_related('user', 'appointment').all()
         else:
-            queryset = Payment.objects.select_related('user', 'appointment').filter(user=user)
+            queryset = PaymentTransaction.objects.select_related('user', 'appointment').filter(user=user)
 
         status_param = self.request.query_params.get('status')
         if status_param:

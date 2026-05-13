@@ -1,4 +1,4 @@
-from .adapters.sslcommerz import SSLCommerzAdapter
+from ..adapters.sslcommerz import SSLCommerzAdapter
 
 def get_adapter(provider: str = 'sslcommerz'):
     provider = provider.lower()

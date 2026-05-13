@@ -1,5 +1,5 @@
 from rest_framework import serializers
-from .models import Payment
+from .models import PaymentTransaction
 from appointments.models import Appointment
 from appointments.serializers import AppointmentSerializer
 
@@ -7,7 +7,7 @@ class CreatePaymentSerializer(serializers.ModelSerializer):
     appointment_id = serializers.IntegerField(write_only=True)
 
     class Meta:
-        model = Payment
+        model = PaymentTransaction
         fields = ['id', 'appointment_id', 'amount', 'status', 'transaction_id', 'created_at']
         read_only_fields = ['id', 'amount', 'status', 'transaction_id', 'created_at']
 
@@ -31,11 +31,11 @@ class CreatePaymentSerializer(serializers.ModelSerializer):
         appointment = Appointment.objects.get(id=validated_data['appointment_id'], patient=user)
         
         # Create payment record
-        payment = Payment.objects.create(
+        payment = PaymentTransaction.objects.create(
             user=user, 
             appointment=appointment, 
             amount=appointment.consultation_fee, 
-            status=Payment.STATUS_PENDING
+            status=PaymentTransaction.STATUS_INITIATED
         )
         return payment
 
@@ -43,5 +43,5 @@ class PaymentDetailSerializer(serializers.ModelSerializer):
     appointment = AppointmentSerializer()
 
     class Meta:
-        model = Payment
+        model = PaymentTransaction
         fields = ['id', 'appointment', 'amount', 'status', 'transaction_id', 'created_at']

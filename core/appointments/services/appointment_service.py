@@ -24,6 +24,14 @@ class AppointmentService:
         appointment.status = new_status
         appointment.save()
 
+        # Handle financial side effects
+        from payments.services.escrow_service import EscrowService
+        if new_status == 'completed':
+            EscrowService.release_payment(appointment)
+        elif new_status in ['cancelled', 'rejected']:
+            # Refund if payment was held
+            EscrowService.refund_to_wallet(appointment, reason=f"Status changed to {new_status}")
+
         # Create log
         AppointmentStatusLog.objects.create(
             appointment=appointment,

@@ -842,7 +842,7 @@
           }
         },
         {
-          "name": "2. List Payments",
+          "name": "2. Payment History",
           "request": {
             "method": "GET",
             "header": [
@@ -852,7 +852,7 @@
               }
             ],
             "url": {
-              "raw": "{{base_url}}/api/v1/payments/",
+              "raw": "{{base_url}}/api/v1/payments/history/",
               "host": [
                 "{{base_url}}"
               ],
@@ -860,6 +860,7 @@
                 "api",
                 "v1",
                 "payments",
+                "history",
                 ""
               ]
             }
@@ -893,6 +894,63 @@
               ]
             },
             "description": "Simulation of the SSLCommerz IPN call. Status VALID confirms the payment and updates the appointment status."
+          }
+        }
+      ]
+    },
+    {
+      "name": "Wallets",
+      "item": [
+        {
+          "name": "1. My Wallet",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{access_token}}"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/api/v1/wallets/me/",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "wallets",
+                "me",
+                ""
+              ]
+            },
+            "description": "Get current available and pending balance. Works for both patients and doctors."
+          }
+        },
+        {
+          "name": "2. Wallet Transactions",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{access_token}}"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/api/v1/wallets/transactions/",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "wallets",
+                "transactions",
+                ""
+              ]
+            },
+            "description": "Get list of all financial movements (ledger entries) for the authenticated user."
           }
         }
       ]
