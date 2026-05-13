@@ -131,6 +131,31 @@ docker compose exec web pytest
 
 ---
 
+## ⚙️ Server Optimization
+
+Before deploying to production, apply these optimizations to your host server:
+
+### 1. Redis Memory Overcommit
+Redis requires this setting to handle background saves without performance degradation.
+```bash
+sudo sysctl vm.overcommit_memory=1
+```
+To make it permanent, add `vm.overcommit_memory = 1` to `/etc/sysctl.conf`.
+
+---
+
+## ✅ Deployment Checklist
+
+Ensure these steps are completed before going live:
+
+1. [ ] **Environment**: `.env` is configured with `DEBUG=False`.
+2. [ ] **Static Assets**: `STATIC_ROOT` is set and `collectstatic` runs successfully.
+3. [ ] **Migrations**: Database schema is up to date (handled automatically by the `web` container).
+4. [ ] **SSL**: Certificates are initialized via the Certbot command.
+5. [ ] **Proxy**: Nginx is correctly routing traffic to Daphne on port 8000.
+
+---
+
 ## ☁️ DigitalOcean Deployment (amardoc.reshad.dev)
 
 Follow these steps to deploy the platform to your DigitalOcean droplet:
@@ -145,6 +170,7 @@ SSH into your droplet and clone the repo:
 ```bash
 git clone <your-repo-url> amardoctor
 cd amardoctor
+chmod +x scripts/*.sh
 cp .env.example .env
 ```
 Update `.env` with your production values:

@@ -1,3 +1,5 @@
+version: '3.8'
+
 services:
   db:
     image: postgres:17-alpine
@@ -32,6 +34,7 @@ services:
       - REDIS_URL=redis://redis:6379/0
       - CELERY_BROKER_URL=redis://redis:6379/0
       - CELERY_RESULT_BACKEND=redis://redis:6379/0
+      - RUN_MIGRATIONS=True
     depends_on:
       - db
       - redis
@@ -54,6 +57,7 @@ services:
       - REDIS_URL=redis://redis:6379/0
       - CELERY_BROKER_URL=redis://redis:6379/0
       - CELERY_RESULT_BACKEND=redis://redis:6379/0
+      - RUN_MIGRATIONS=False
     depends_on:
       - db
       - redis
@@ -74,9 +78,22 @@ services:
       - REDIS_URL=redis://redis:6379/0
       - CELERY_BROKER_URL=redis://redis:6379/0
       - CELERY_RESULT_BACKEND=redis://redis:6379/0
+      - RUN_MIGRATIONS=False
     depends_on:
       - db
       - redis
+    restart: always
+
+  nginx:
+    build: ./nginx
+    container_name: amardoctor_nginx
+    ports:
+      - "80:80"
+    volumes:
+      - static_volume:/app/staticfiles
+      - media_volume:/app/media
+    depends_on:
+      - web
     restart: always
 
 volumes:

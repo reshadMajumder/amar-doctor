@@ -12,11 +12,15 @@ then
     echo "PostgreSQL started"
 fi
 
-# Run migrations
-python manage.py migrate --noinput
-
-# Collect static files
-python manage.py collectstatic --noinput
+# Run migrations only if requested
+if [ "$RUN_MIGRATIONS" = "True" ]
+then
+    echo "Running migrations..."
+    python manage.py migrate --noinput
+    
+    echo "Collecting static files..."
+    python manage.py collectstatic --noinput
+fi
 
 # Start application
 if [ "$DEBUG" = "True" ]
