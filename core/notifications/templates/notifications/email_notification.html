@@ -1,0 +1,60 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <style>
+        .email-container {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            max-width: 600px;
+            margin: 0 auto;
+            border: 1px solid #e0e0e0;
+            border-radius: 8px;
+            overflow: hidden;
+        }
+        .header {
+            background-color: #2c3e50;
+            color: #ffffff;
+            padding: 20px;
+            text-align: center;
+        }
+        .content {
+            padding: 30px;
+            color: #333333;
+            line-height: 1.6;
+        }
+        .button {
+            display: inline-block;
+            padding: 12px 24px;
+            background-color: #3498db;
+            color: #ffffff;
+            text-decoration: none;
+            border-radius: 4px;
+            margin-top: 20px;
+        }
+        .footer {
+            background-color: #f8f9fa;
+            color: #777777;
+            padding: 15px;
+            text-align: center;
+            font-size: 12px;
+        }
+    </style>
+</head>
+<body>
+    <div class="email-container">
+        <div class="header">
+            <h1 style="margin: 0;">Amardoctor</h1>
+        </div>
+        <div class="content">
+            <h2>{{ title }}</h2>
+            <p>Hello {{ user.get_full_name|default:user.email }},</p>
+            <p>{{ message }}</p>
+            
+            <a href="{{ base_url }}" class="button">Open Amardoctor</a>
+        </div>
+        <div class="footer">
+            <p>This is an automated notification. Please do not reply to this email.</p>
+            <p>&copy; 2026 Amardoctor Telemedicine. All rights reserved.</p>
+        </div>
+    </div>
+</body>
+</html>

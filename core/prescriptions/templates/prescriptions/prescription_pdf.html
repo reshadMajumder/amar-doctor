@@ -1,0 +1,128 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="UTF-8">
+    <style>
+        @page {
+            size: a4 portrait;
+            margin: 2cm;
+        }
+        body {
+            font-family: Arial, sans-serif;
+            line-height: 1.6;
+            color: #333;
+        }
+        .header {
+            border-bottom: 2px solid #2c3e50;
+            padding-bottom: 10px;
+            margin-bottom: 20px;
+        }
+        .doctor-info {
+            float: left;
+            width: 60%;
+        }
+        .patient-info {
+            float: right;
+            width: 35%;
+            text-align: right;
+        }
+        .clear {
+            clear: both;
+        }
+        .rx-symbol {
+            font-size: 30px;
+            font-weight: bold;
+            color: #2c3e50;
+            margin: 20px 0;
+        }
+        .medicine-table {
+            width: 100%;
+            border-collapse: collapse;
+            margin-bottom: 30px;
+        }
+        .medicine-table th, .medicine-table td {
+            text-align: left;
+            padding: 10px;
+            border-bottom: 1px solid #eee;
+        }
+        .medicine-table th {
+            background-color: #f8f9fa;
+        }
+        .notes-section {
+            margin-top: 30px;
+            padding: 15px;
+            background-color: #fdfdfd;
+            border-left: 4px solid #2c3e50;
+        }
+        .footer {
+            margin-top: 50px;
+            text-align: center;
+            font-size: 12px;
+            color: #777;
+            border-top: 1px solid #eee;
+            padding-top: 20px;
+        }
+    </style>
+</head>
+<body>
+    <div class="header">
+        <div class="doctor-info">
+            <h2 style="margin: 0;">Dr. {{ doctor.get_full_name }}</h2>
+            <p style="margin: 0;">{{ doctor.specialization|default:"Medical Consultant" }}</p>
+            <p style="margin: 0;">Reg No: {{ doctor.registration_number|default:"N/A" }}</p>
+        </div>
+        <div class="patient-info">
+            <p style="margin: 0;"><strong>Patient:</strong> {{ patient.get_full_name }}</p>
+            <p style="margin: 0;"><strong>Age:</strong> {{ patient.age|default:"N/A" }} | {{ patient.gender|default:"N/A" }}</p>
+            <p style="margin: 0;"><strong>Date:</strong> {{ prescription.finalized_at|date:"d M Y" }}</p>
+        </div>
+        <div class="clear"></div>
+    </div>
+
+    <div class="notes-section">
+        <p><strong>Diagnosis:</strong><br>{{ prescription.diagnosis_notes|linebreaksbr }}</p>
+    </div>
+
+    <div class="rx-symbol">Rx</div>
+
+    <table class="medicine-table">
+        <thead>
+            <tr>
+                <th>Medicine</th>
+                <th>Dosage</th>
+                <th>Frequency</th>
+                <th>Duration</th>
+            </tr>
+        </thead>
+        <tbody>
+            {% for item in items %}
+            <tr>
+                <td>
+                    <strong>{{ item.medicine_name }}</strong><br>
+                    <small>{{ item.generic_name }}</small><br>
+                    <small><em>{{ item.instruction }}</em></small>
+                </td>
+                <td>{{ item.dosage }}</td>
+                <td>{{ item.frequency }}</td>
+                <td>{{ item.duration }}</td>
+            </tr>
+            {% empty %}
+            <tr>
+                <td colspan="4">No medicines prescribed.</td>
+            </tr>
+            {% endfor %}
+        </tbody>
+    </table>
+
+    <div class="notes-section">
+        <p><strong>Advice:</strong><br>{{ prescription.advice_notes|linebreaksbr }}</p>
+        <p><strong>Follow-up:</strong><br>{{ prescription.follow_up_instructions|linebreaksbr }}</p>
+    </div>
+
+    <div class="footer">
+        <p>This is an electronically generated prescription. No signature is required.</p>
+        <p><strong>Amardoctor AI-Assisted Telemedicine Platform</strong></p>
+        <p>Ref: {{ prescription.appointment.booking_reference }}</p>
+    </div>
+</body>
+</html>

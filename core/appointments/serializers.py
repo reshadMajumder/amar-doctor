@@ -21,6 +21,7 @@ class DoctorBlockedSlotSerializer(serializers.ModelSerializer):
 class AppointmentSerializer(serializers.ModelSerializer):
     patient_name = serializers.CharField(source='patient.full_name', read_only=True)
     doctor_name = serializers.CharField(source='doctor.full_name', read_only=True)
+    chat_room_id = serializers.IntegerField(source='chat_room.id', read_only=True, allow_null=True)
     
     class Meta:
         model = Appointment

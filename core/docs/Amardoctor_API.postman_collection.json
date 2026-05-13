@@ -956,6 +956,203 @@
       ]
     },
     {
+      "name": "Prescriptions",
+      "item": [
+        {
+          "name": "1. Create Draft Prescription (Doctor)",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{access_token}}"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n    \"appointment_id\": {{appointment_id}},\n    \"diagnosis_notes\": \"Common Cold with fever\",\n    \"advice_notes\": \"Rest and hydration\",\n    \"follow_up_instructions\": \"Visit again in 7 days if symptoms persist\"\n}"
+            },
+            "url": {
+              "raw": "{{base_url}}/api/v1/prescriptions/",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "prescriptions",
+                ""
+              ]
+            },
+            "description": "Doctor creates the initial prescription draft for an appointment."
+          }
+        },
+        {
+          "name": "2. Add Medicine Item (Doctor)",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{access_token}}"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n    \"medicine_name\": \"Napa Extend\",\n    \"dosage\": \"665mg\",\n    \"frequency\": \"1+0+1\",\n    \"duration\": \"5 days\",\n    \"instruction\": \"After meals\"\n}"
+            },
+            "url": {
+              "raw": "{{base_url}}/api/v1/prescriptions/{{prescription_id}}/items/",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "prescriptions",
+                "{{prescription_id}}",
+                "items",
+                ""
+              ]
+            }
+          }
+        },
+        {
+          "name": "3. Finalize Prescription (Doctor)",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{access_token}}"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/api/v1/prescriptions/{{prescription_id}}/finalize/",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "prescriptions",
+                "{{prescription_id}}",
+                "finalize",
+                ""
+              ]
+            },
+            "description": "Locks the prescription and triggers PDF generation."
+          }
+        },
+        {
+          "name": "4. Download PDF",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{access_token}}"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/api/v1/prescriptions/{{prescription_id}}/pdf/",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "prescriptions",
+                "{{prescription_id}}",
+                "pdf",
+                ""
+              ]
+            }
+          }
+        }
+      ]
+    },
+    {
+      "name": "Notifications",
+      "item": [
+        {
+          "name": "1. List My Notifications",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{access_token}}"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/api/v1/notifications/",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "notifications",
+                ""
+              ]
+            }
+          }
+        },
+        {
+          "name": "2. Mark as Read",
+          "request": {
+            "method": "PATCH",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{access_token}}"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/api/v1/notifications/{{notification_id}}/read/",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "notifications",
+                "{{notification_id}}",
+                "read",
+                ""
+              ]
+            }
+          }
+        },
+        {
+          "name": "3. Get Notification Preferences",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{access_token}}"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/api/v1/notifications/preferences/",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "notifications",
+                "preferences",
+                ""
+              ]
+            }
+          }
+        }
+      ]
+    },
+    {
       "name": "WebSockets",
       "item": [
         {
@@ -1018,6 +1215,67 @@
             },
             "description": "Connect to this socket to receive real-time updates for appointment creation, approval, and status changes."
           }
+        },
+        {
+          "name": "3. Chat Socket (Connect)",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "ws://127.0.0.1:8000/ws/chat/{{room_id}}/?token={{access_token}}",
+              "protocol": "ws",
+              "host": [
+                "127",
+                "0",
+                "0",
+                "1"
+              ],
+              "port": "8000",
+              "path": [
+                "ws",
+                "chat",
+                "{{room_id}}",
+                ""
+              ],
+              "query": [
+                {
+                  "key": "token",
+                  "value": "{{access_token}}"
+                }
+              ]
+            },
+            "description": "Realtime consultation chat.\n\n### Client -> Server Events\n\n**1. Send Message**\n```json\n{\n  \"event\": \"chat.message\",\n  \"data\": {\n    \"message\": \"Hello Doctor\",\n    \"message_type\": \"text\"\n  }\n}\n```\n\n**2. Typing Indicators**\n```json\n{ \"event\": \"typing.start\" }\n{ \"event\": \"typing.stop\" }\n```\n\n**3. Mark Message as Read**\n```json\n{\n  \"event\": \"message.read\",\n  \"data\": { \"message_id\": 123 }\n}\n```\n\n**4. Consultation Lifecycle (Doctor Only)**\n```json\n{ \"event\": \"consultation.start\" }\n{ \"event\": \"consultation.end\" }\n```\n\n### Server -> Client Events\n\n* `chat.message`: New message received\n* `typing.status`: Someone is typing (`is_typing: true/false`)\n* `message.read`: Confirmation that a message was read\n* `consultation.started`: The doctor has officially started the session\n* `consultation.completed`: The doctor has ended the session"
+          }
+        },
+        {
+          "name": "4. Notification Socket (Connect)",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "ws://127.0.0.1:8000/ws/notifications/?token={{access_token}}",
+              "protocol": "ws",
+              "host": [
+                "127",
+                "0",
+                "0",
+                "1"
+              ],
+              "port": "8000",
+              "path": [
+                "ws",
+                "notifications",
+                ""
+              ],
+              "query": [
+                {
+                  "key": "token",
+                  "value": "{{access_token}}"
+                }
+              ]
+            },
+            "description": "Realtime system-wide notifications."
+          }
         }
       ]
     }
@@ -1065,6 +1323,21 @@
     },
     {
       "key": "payment_url",
+      "value": "",
+      "type": "string"
+    },
+    {
+      "key": "prescription_id",
+      "value": "",
+      "type": "string"
+    },
+    {
+      "key": "notification_id",
+      "value": "",
+      "type": "string"
+    },
+    {
+      "key": "room_id",
       "value": "",
       "type": "string"
     }
