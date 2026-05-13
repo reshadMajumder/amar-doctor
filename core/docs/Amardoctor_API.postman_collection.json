@@ -1,0 +1,606 @@
+{
+  "info": {
+    "name": "Amardoctor API",
+    "description": "API documentation for the AI-assisted telemedicine platform. Includes Authentication and Realtime AI Triage.",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+  },
+  "item": [
+    {
+      "name": "Authentication",
+      "item": [
+        {
+          "name": "1. Patient Registration",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n    \"email\": \"patient@example.com\",\n    \"password\": \"securepassword123\",\n    \"confirm_password\": \"securepassword123\",\n    \"full_name\": \"John Doe\"\n}"
+            },
+            "url": {
+              "raw": "{{base_url}}/api/v1/auth/register/patient/",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "auth",
+                "register",
+                "patient",
+                ""
+              ]
+            }
+          }
+        },
+        {
+          "name": "2. Doctor Registration",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n    \"email\": \"doctor@example.com\",\n    \"password\": \"securepassword123\",\n    \"full_name\": \"Dr. Jane Smith\",\n    \"specialization\": \"Cardiology\",\n    \"bmdc_number\": \"BMDC-123456\"\n}"
+            },
+            "url": {
+              "raw": "{{base_url}}/api/v1/auth/register/doctor/",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "auth",
+                "register",
+                "doctor",
+                ""
+              ]
+            }
+          }
+        },
+        {
+          "name": "3. Verify Registration OTP",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n    \"email\": \"patient@example.com\",\n    \"otp\": \"123456\"\n}"
+            },
+            "url": {
+              "raw": "{{base_url}}/api/v1/auth/verify-otp/",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "auth",
+                "verify-otp",
+                ""
+              ]
+            }
+          }
+        },
+        {
+          "name": "4. Login (Password)",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "var jsonData = pm.response.json();",
+                  "if (jsonData.success) {",
+                  "    pm.environment.set(\"access_token\", jsonData.data.tokens.access);",
+                  "    pm.environment.set(\"refresh_token\", jsonData.data.tokens.refresh);",
+                  "}"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n    \"email\": \"patient@example.com\",\n    \"password\": \"securepassword123\"\n}"
+            },
+            "url": {
+              "raw": "{{base_url}}/api/v1/auth/login/",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "auth",
+                "login",
+                ""
+              ]
+            }
+          }
+        },
+        {
+          "name": "5. Request Login OTP",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n    \"email\": \"patient@example.com\"\n}"
+            },
+            "url": {
+              "raw": "{{base_url}}/api/v1/auth/request-login-otp/",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "auth",
+                "request-login-otp",
+                ""
+              ]
+            }
+          }
+        },
+        {
+          "name": "6. Verify Login OTP",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "var jsonData = pm.response.json();",
+                  "if (jsonData.success) {",
+                  "    pm.environment.set(\"access_token\", jsonData.data.tokens.access);",
+                  "    pm.environment.set(\"refresh_token\", jsonData.data.tokens.refresh);",
+                  "}"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n    \"email\": \"patient@example.com\",\n    \"otp\": \"123456\"\n}"
+            },
+            "url": {
+              "raw": "{{base_url}}/api/v1/auth/verify-login-otp/",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "auth",
+                "verify-login-otp",
+                ""
+              ]
+            }
+          }
+        },
+        {
+          "name": "7. Refresh Token",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "var jsonData = pm.response.json();",
+                  "if (jsonData.access) {",
+                  "    pm.environment.set(\"access_token\", jsonData.access);",
+                  "    if (jsonData.refresh) pm.environment.set(\"refresh_token\", jsonData.refresh);",
+                  "}"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n    \"refresh\": \"{{refresh_token}}\"\n}"
+            },
+            "url": {
+              "raw": "{{base_url}}/api/v1/auth/refresh/",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "auth",
+                "refresh",
+                ""
+              ]
+            }
+          }
+        },
+        {
+          "name": "8. Logout",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n    \"refresh\": \"{{refresh_token}}\"\n}"
+            },
+            "url": {
+              "raw": "{{base_url}}/api/v1/auth/logout/",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "auth",
+                "logout",
+                ""
+              ]
+            }
+          }
+        },
+        {
+          "name": "9. Password Reset Request",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n    \"email\": \"patient@example.com\"\n}"
+            },
+            "url": {
+              "raw": "{{base_url}}/api/v1/auth/password-reset/request/",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "auth",
+                "password-reset",
+                "request",
+                ""
+              ]
+            }
+          }
+        },
+        {
+          "name": "10. Password Reset Verify OTP",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "var jsonData = pm.response.json();",
+                  "if (jsonData.success) {",
+                  "    pm.environment.set(\"reset_token\", jsonData.data.reset_token);",
+                  "}"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n    \"email\": \"patient@example.com\",\n    \"otp\": \"123456\"\n}"
+            },
+            "url": {
+              "raw": "{{base_url}}/api/v1/auth/password-reset/verify/",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "auth",
+                "password-reset",
+                "verify",
+                ""
+              ]
+            }
+          }
+        },
+        {
+          "name": "11. Password Reset Confirm",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n    \"email\": \"patient@example.com\",\n    \"reset_token\": \"{{reset_token}}\",\n    \"new_password\": \"newsecurepassword123\",\n    \"confirm_password\": \"newsecurepassword123\"\n}"
+            },
+            "url": {
+              "raw": "{{base_url}}/api/v1/auth/password-reset/confirm/",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "auth",
+                "password-reset",
+                "confirm",
+                ""
+              ]
+            }
+          }
+        }
+      ]
+    },
+    {
+      "name": "AI Triage",
+      "item": [
+        {
+          "name": "1. Create Triage Session",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "var jsonData = pm.response.json();",
+                  "if (jsonData.success) {",
+                  "    pm.environment.set(\"session_id\", jsonData.data.id);",
+                  "}"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{access_token}}"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/api/v1/triage/sessions/",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "triage",
+                "sessions",
+                ""
+              ]
+            }
+          }
+        },
+        {
+          "name": "2. Get Triage Sessions",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{access_token}}"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/api/v1/triage/sessions/",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "triage",
+                "sessions",
+                ""
+              ]
+            }
+          }
+        },
+        {
+          "name": "3. Get Session Details (Includes Messages)",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{access_token}}"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/api/v1/triage/sessions/{{session_id}}/",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "triage",
+                "sessions",
+                "{{session_id}}",
+                ""
+              ]
+            }
+          }
+        },
+        {
+          "name": "4. Get AI Reports",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{access_token}}"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/api/v1/triage/reports/",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "triage",
+                "reports",
+                ""
+              ]
+            }
+          }
+        },
+        {
+          "name": "5. Get Single AI Report",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{access_token}}"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/api/v1/triage/reports/1/",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "triage",
+                "reports",
+                "1",
+                ""
+              ]
+            }
+          }
+        }
+      ]
+    },
+    {
+      "name": "WebSockets",
+      "item": [
+        {
+          "name": "1. AI Triage Socket (Connect)",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "ws://127.0.0.1:8000/ws/triage/{{session_id}}/?token={{access_token}}",
+              "protocol": "ws",
+              "host": [
+                "127",
+                "0",
+                "0",
+                "1"
+              ],
+              "port": "8000",
+              "path": [
+                "ws",
+                "triage",
+                "{{session_id}}",
+                ""
+              ],
+              "query": [
+                {
+                  "key": "token",
+                  "value": "{{access_token}}"
+                }
+              ]
+            },
+            "description": "Note: Postman supports WebSocket requests natively via 'New -> WebSocket Request'.\n\nTo start a session, send this JSON message after connecting:\n\n{\n    \"event\": \"session.start\",\n    \"data\": {\n        \"symptoms\": \"I have a severe headache and dizziness.\"\n    }\n}\n\nTo answer a follow-up question, send:\n\n{\n    \"event\": \"patient.answer\",\n    \"data\": {\n        \"message\": \"It started yesterday morning.\"\n    }\n}"
+          }
+        }
+      ]
+    }
+  ],
+  "variable": [
+    {
+      "key": "base_url",
+      "value": "http://127.0.0.1:8000",
+      "type": "string"
+    },
+    {
+      "key": "access_token",
+      "value": "",
+      "type": "string"
+    },
+    {
+      "key": "refresh_token",
+      "value": "",
+      "type": "string"
+    },
+    {
+      "key": "reset_token",
+      "value": "",
+      "type": "string"
+    },
+    {
+      "key": "session_id",
+      "value": "",
+      "type": "string"
+    }
+  ]
+}
