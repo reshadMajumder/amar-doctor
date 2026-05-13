@@ -30,7 +30,7 @@ SECRET_KEY = os.getenv('SECRET_KEY', 'django-insecure-fallback-key')
 # SECURITY WARNING: don't run with debug turned on in production!
 DEBUG = os.getenv('DEBUG', 'False').lower() in ('true', '1', 't')
 
-ALLOWED_HOSTS = []
+ALLOWED_HOSTS = ["*"]
 
 
 # Application definition
@@ -54,6 +54,8 @@ INSTALLED_APPS = [
     # Local apps
     'accounts',
     'triage',
+    'appointments',
+    'payments',
 ]
 
 MIDDLEWARE = [
@@ -213,3 +215,11 @@ DEFAULT_FROM_EMAIL = os.getenv('DEFAULT_FROM_EMAIL', 'Amardoctor <noreply@amardo
 # AI Provider Settings
 DEFAULT_AI_PROVIDER = os.getenv('DEFAULT_AI_PROVIDER', 'gemini')
 GEMINI_API_KEY = os.getenv('GEMINI_API_KEY', '')
+
+# SSLCommerz Settings
+SSL_STORE_ID = os.getenv('SSL_STORE_ID')
+SSL_STORE_PASSWORD = os.getenv('SSL_STORE_PASSWORD')
+SSL_SANDBOX_URL = os.getenv('SSL_SANDBOX_URL', 'https://sandbox.sslcommerz.com/gwprocess/v4/api.php')
+
+# Public domain for redirects and webhooks
+PUBLIC_DOMAIN = os.getenv('PUBLIC_DOMAIN', 'http://127.0.0.1:8000')

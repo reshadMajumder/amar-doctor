@@ -58,8 +58,13 @@ class AuthService:
                 'bmdc_number': bmdc_number
             }
         )
+
+        # Generate and send OTP for email verification
+        otp = self.otp_service.generate_otp()
+        self.otp_service.store_otp(email, otp, purpose='registration')
+        send_registration_otp_task.delay(email, otp)
         
-        return True, "Registration successful. Pending admin approval."
+        return True, "Registration successful. OTP sent for email verification. Account pending admin approval."
 
     def verify_registration_otp(self, email, otp):
         success, message = self.otp_service.verify_otp(email, otp, purpose='registration')

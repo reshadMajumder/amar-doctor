@@ -540,6 +540,364 @@
       ]
     },
     {
+      "name": "Appointments",
+      "item": [
+        {
+          "name": "1. Manage Availability (Doctor)",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{access_token}}"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n    \"weekday\": 1,\n    \"start_time\": \"09:00:00\",\n    \"end_time\": \"17:00:00\",\n    \"slot_duration_minutes\": 30,\n    \"timezone\": \"UTC\"\n}"
+            },
+            "url": {
+              "raw": "{{base_url}}/api/v1/appointments/availability/",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "appointments",
+                "availability",
+                ""
+              ]
+            }
+          }
+        },
+        {
+          "name": "2. List Availabilities",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{access_token}}"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/api/v1/appointments/availability/",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "appointments",
+                "availability",
+                ""
+              ]
+            }
+          }
+        },
+        {
+          "name": "3. Get Available Slots (Patient)",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{access_token}}"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/api/v1/appointments/doctors/{{doctor_id}}/available-slots/?date=2026-05-20",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "appointments",
+                "doctors",
+                "{{doctor_id}}",
+                "available-slots",
+                ""
+              ],
+              "query": [
+                {
+                  "key": "date",
+                  "value": "2026-05-20"
+                }
+              ]
+            }
+          }
+        },
+        {
+          "name": "4. Book Appointment",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "var jsonData = pm.response.json();",
+                  "if (jsonData.id) {",
+                  "    pm.environment.set(\"appointment_id\", jsonData.id);",
+                  "}"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{access_token}}"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n    \"doctor\": {{doctor_id}},\n    \"scheduled_start\": \"2026-05-20T10:00:00Z\",\n    \"consultation_type\": \"text\",\n    \"ai_report\": 1,\n    \"notes\": \"I have severe back pain.\"\n}"
+            },
+            "url": {
+              "raw": "{{base_url}}/api/v1/appointments/",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "appointments",
+                ""
+              ]
+            }
+          }
+        },
+        {
+          "name": "5. List Appointments",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{access_token}}"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/api/v1/appointments/",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "appointments",
+                ""
+              ]
+            }
+          }
+        },
+        {
+          "name": "6. Appointment Details",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{access_token}}"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/api/v1/appointments/{{appointment_id}}/",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "appointments",
+                "{{appointment_id}}",
+                ""
+              ]
+            }
+          }
+        },
+        {
+          "name": "7. Approve Appointment (Doctor)",
+          "request": {
+            "method": "PATCH",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{access_token}}"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/api/v1/appointments/{{appointment_id}}/approve/",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "appointments",
+                "{{appointment_id}}",
+                "approve",
+                ""
+              ]
+            }
+          }
+        },
+        {
+          "name": "8. Cancel Appointment",
+          "request": {
+            "method": "PATCH",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{access_token}}"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n    \"reason\": \"Changed my mind\"\n}"
+            },
+            "url": {
+              "raw": "{{base_url}}/api/v1/appointments/{{appointment_id}}/cancel/",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "appointments",
+                "{{appointment_id}}",
+                "cancel",
+                ""
+              ]
+            }
+          }
+        }
+      ]
+    },
+    {
+      "name": "Payments",
+      "item": [
+        {
+          "name": "1. Initialize Payment (Patient)",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "var jsonData = pm.response.json();",
+                  "if (jsonData.payment_id) {",
+                  "    pm.environment.set(\"payment_id\", jsonData.payment_id);",
+                  "    pm.environment.set(\"payment_url\", jsonData.payment_url);",
+                  "}"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{access_token}}"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n    \"appointment_id\": {{appointment_id}}\n}"
+            },
+            "url": {
+              "raw": "{{base_url}}/api/v1/payments/",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "payments",
+                ""
+              ]
+            },
+            "description": "Call this to get a `payment_url`. Redirect the patient to that URL to complete the transaction."
+          }
+        },
+        {
+          "name": "2. List Payments",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{access_token}}"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/api/v1/payments/",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "payments",
+                ""
+              ]
+            }
+          }
+        },
+        {
+          "name": "3. Webhook (SSLCommerz Simulation)",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n    \"tran_id\": \"{{payment_id}}\",\n    \"status\": \"VALID\",\n    \"val_id\": \"VAL123456789\",\n    \"amount\": \"500.00\",\n    \"currency\": \"BDT\"\n}"
+            },
+            "url": {
+              "raw": "{{base_url}}/api/v1/payments/webhook/",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "payments",
+                "webhook",
+                ""
+              ]
+            },
+            "description": "Simulation of the SSLCommerz IPN call. Status VALID confirms the payment and updates the appointment status."
+          }
+        }
+      ]
+    },
+    {
       "name": "WebSockets",
       "item": [
         {
@@ -572,6 +930,36 @@
             },
             "description": "Note: Postman supports WebSocket requests natively via 'New -> WebSocket Request'.\n\nTo start a session, send this JSON message after connecting:\n\n{\n    \"event\": \"session.start\",\n    \"data\": {\n        \"symptoms\": \"I have a severe headache and dizziness.\"\n    }\n}\n\nTo answer a follow-up question, send:\n\n{\n    \"event\": \"patient.answer\",\n    \"data\": {\n        \"message\": \"It started yesterday morning.\"\n    }\n}"
           }
+        },
+        {
+          "name": "2. Appointment Notifications Socket (Connect)",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "ws://127.0.0.1:8000/ws/appointments/?token={{access_token}}",
+              "protocol": "ws",
+              "host": [
+                "127",
+                "0",
+                "0",
+                "1"
+              ],
+              "port": "8000",
+              "path": [
+                "ws",
+                "appointments",
+                ""
+              ],
+              "query": [
+                {
+                  "key": "token",
+                  "value": "{{access_token}}"
+                }
+              ]
+            },
+            "description": "Connect to this socket to receive real-time updates for appointment creation, approval, and status changes."
+          }
         }
       ]
     }
@@ -599,6 +987,26 @@
     },
     {
       "key": "session_id",
+      "value": "",
+      "type": "string"
+    },
+    {
+      "key": "doctor_id",
+      "value": "1",
+      "type": "string"
+    },
+    {
+      "key": "appointment_id",
+      "value": "",
+      "type": "string"
+    },
+    {
+      "key": "payment_id",
+      "value": "",
+      "type": "string"
+    },
+    {
+      "key": "payment_url",
       "value": "",
       "type": "string"
     }

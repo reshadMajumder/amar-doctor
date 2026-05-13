@@ -44,3 +44,17 @@ class PasswordResetConfirmSerializer(serializers.Serializer):
         if data['new_password'] != data['confirm_password']:
             raise serializers.ValidationError({"new_password": "Passwords must match."})
         return data
+
+from .models import User, DoctorProfile
+
+class UserSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = User
+        fields = ('id', 'email', 'full_name', 'role', 'is_verified')
+        read_only_fields = ('id', 'role', 'is_verified')
+
+class DoctorProfileSerializer(serializers.ModelSerializer):
+    user = UserSerializer(read_only=True)
+    class Meta:
+        model = DoctorProfile
+        fields = ('id', 'user', 'specialization', 'bmdc_number', 'documents')

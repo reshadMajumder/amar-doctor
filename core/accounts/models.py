@@ -58,6 +58,7 @@ class DoctorProfile(models.Model):
     specialization = models.CharField(max_length=255)
     bmdc_number = models.CharField(max_length=100)
     documents = models.FileField(upload_to='doctor_docs/', blank=True, null=True)
+    consultation_fee = models.DecimalField(max_digits=10, decimal_places=2, default=500.00)
 
     def __str__(self):
         return f"Dr. {self.user.full_name} - {self.specialization}"

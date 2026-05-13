@@ -15,6 +15,9 @@ class OTPService:
         return str(random.randint(100000, 999999))
 
     def store_otp(self, email, otp, purpose):
+        # Print OTP to console for testing
+        print(f"\n--- DEBUG OTP for {email} [{purpose}]: {otp} ---\n")
+        
         cache_key = self._get_cache_key(email, purpose)
         hashed_otp = make_password(otp)
         cache.set(cache_key, hashed_otp, timeout=self.TTL_SECONDS)
