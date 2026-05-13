@@ -1,204 +1,116 @@
-# Amardoctor: AI-Assisted Telemedicine Platform
+# Amar Doctor 🏥
 
-Amardoctor is a production-grade telemedicine platform featuring AI-driven triage, a secure clinical ledger, realtime consultation chat, and an automated prescription system.
+A comprehensive AI-powered healthcare platform connecting patients with doctors for virtual consultations, medical guidance, and emergency triage.
 
-## 🚀 Key Features
+## 🚀 Features
 
-- **AI Triage System**: Automated symptom analysis and specialist recommendations using Google Gemini.
-- **Financial Infrastructure**: Audit-safe wallet system with escrow-style payment holding and automated commissions.
-- **Realtime Consultations**: WebSocket-based chat system with presence indicators and message persistence.
-- **Clinical Documentation**: Structured prescription system with automated PDF generation.
-- **Event-Driven Notifications**: Realtime alerts via WebSockets, persistent in-app notifications, and async emails.
+### 👨‍⚕️ For Doctors
 
----
+- **AI Triage Assistant** - Automatically triage incoming patient messages using Gemini AI
+- **Smart Response Generation** - Get AI-suggested responses to patient queries
+- **Patient History** - View complete conversation history for each patient
+- **Professional Dashboard** - Track patient interactions and manage consultations
 
-## 🛠️ Tech Stack
+### 👨‍⚕️ For Patients
 
-- **Backend**: Django & Django REST Framework
-- **Realtime**: Django Channels & Redis
-- **Database**: PostgreSQL
-- **Task Queue**: Celery & Redis
-- **Web Server**: Daphne & Nginx
+- **AI Health Assistant** - Get instant medical guidance and triage
+- **Doctor Consultation** - Chat with qualified doctors for expert advice
+- **Health Monitoring** - Track symptoms and treatment progress
+- **Emergency Support** - Get prioritized assistance during critical situations
+
+## ⚙️ Tech Stack
+
+### Backend
+- **Framework**: Django 6.0
+- **Database**: PostgreSQL 17
+- **AI**: Google Gemini API
+- **Async**: Django Channels & Daphne
+- **Caching**: Redis
+- **Authentication**: JWT (JSON Web Tokens)
+- **Task Queue**: Celery
+
+### Frontend
+- **Framework**: React
+- **Styling**: Tailwind CSS
+- **State Management**: Zustand
+- **Notifications**: Socket.IO
+
+### Infrastructure
 - **Containerization**: Docker & Docker Compose
+- **Web Server**: Nginx
+- **Proxy**: Gunicorn
 
----
+## 📦 Installation
 
-## 📦 Getting Started
+### Prerequisites
+- Docker
+- Docker Compose
 
-### 1. Prerequisites
-- Docker and Docker Compose installed.
-- SSL certificates (for production mode) or use the provided setup script.
+### Quick Start
 
-### 2. Environment Configuration
-Copy the example environment file and fill in your credentials:
-```bash
-cp .env.example .env
-```
-
-### 3. Deployment
-
-#### 🔹 Development Mode
-Optimized for local coding with volume mounting and auto-reload.
-```bash
-./scripts/deploy.sh dev
-```
-Access the API at: `http://localhost:8000/api/v1/`
-
-#### 🔹 Production Mode (Local Test)
-Simulates a production environment with Nginx and SSL.
-1. Generate self-signed certificates:
+1. **Clone the repository**
    ```bash
-   ./scripts/setup_ssl.sh localhost
+   git clone https://github.com/reshadMajumder/amar-doctor.git
+   cd amar-doctor
    ```
-2. Deploy:
+
+2. **Start the services**
    ```bash
-   ./scripts/deploy.sh prod
+   docker compose up -d
    ```
-Access the API at: `https://localhost/api/v1/`
 
----
+3. **Apply migrations**
+   ```bash
+   docker compose exec web python manage.py migrate
+   ```
 
-## 📖 API Documentation
+4. **Create superuser**
+   ```bash
+   docker compose exec web python manage.py createsuperuser
+   ```
 
-The complete API documentation is available as a Postman Collection.
-- **File**: `core/docs/Amardoctor_API.postman_collection.json`
+5. **Access the application**
+   - Frontend: [http://localhost:3000](http://localhost:3000)
+   - Django Admin: [http://localhost:8000/admin](http://localhost:8000/admin)
 
-### WebSocket Endpoints
-- **AI Triage**: `ws://localhost:8000/ws/triage/{session_id}/`
-- **Appointments**: `ws://localhost:8000/ws/appointments/`
-- **Consultation Chat**: `ws://localhost:8000/ws/chat/{room_id}/`
-- **Notifications**: `ws://localhost:8000/ws/notifications/`
+## 📁 Project Structure
 
----
+```
+amardoctor/
+├── core/                 # Django project root
+│   ├── accounts/         # User authentication and profiles
+│   ├── triage/           # AI triage and consultation logic
+│   ├── chat/             # Real-time messaging
+│   └── api/              # API endpoints
+├── frontend/             # React frontend
+├── docker/               # Docker configurations
+└── nginx/                # Nginx configurations
+```
 
 ## 🧪 Testing
 
-Run the test suite using `pytest`:
+Run tests using pytest:
 ```bash
 docker compose exec web pytest
 ```
 
----
+## 📂 Environment Variables
 
-## 💻 CLI Reference
-
-### Deployment Commands
-
-| Command | When to use |
-| :--- | :--- |
-| `./scripts/deploy.sh dev` | **Daily Development**. Enables hot-reloading for code changes and keeps debug mode ON. |
-| `./scripts/deploy.sh prod` | **Production Testing**. Starts Nginx with SSL and Daphne. Use this for final staging checks. |
-| `docker compose down` | **Stop Services**. Safely stops and removes all running containers. |
-
-### Database & Management
-
-| Command | When to use |
-| :--- | :--- |
-| `docker compose exec web python manage.py makemigrations` | **Schema Changes**. Run this after adding or modifying Django models. |
-| `docker compose exec web python manage.py migrate` | **Apply Changes**. Syncs the database with your latest migration files. |
-| `docker compose exec web python manage.py createsuperuser` | **Admin Access**. Create the first administrative account for the dashboard. |
-| `docker compose exec web python manage.py shell` | **Debugging**. Opens a Python REPL inside the running web container. |
-
-### Logs & Monitoring
-
-| Command | When to use |
-| :--- | :--- |
-| `docker compose logs -f` | **Full Monitoring**. Watch realtime logs for all services (DB, Web, Celery). |
-| `docker compose logs -f web` | **Web Debugging**. Specifically monitor Django/Daphne request logs. |
-| `docker compose logs -f celery` | **Task Debugging**. Track background tasks, AI processing, and emails. |
-
----
-
-## 📁 Project Structure
-
-```text
-├── core/                   # Django Project Root
-│   ├── chat/               # Realtime Consultation System
-│   ├── prescriptions/      # Medical Documentation System
-│   ├── notifications/      # Event-Driven Alert System
-│   ├── payments/           # Financial Gateway & Escrow
-│   ├── wallets/            # Ledger-based Wallet System
-│   └── triage/             # AI Triage & Gemini Integration
-├── nginx/                  # Nginx Configuration (SSL/Proxy)
-├── scripts/                # Deployment & SSL Utility Scripts
-├── ssl/                    # SSL Certificates (Git Ignored)
-└── docker-compose.yml      # Base Orchestration
+Create a `.env` file based on `.env.example`:
+```env
+DB_NAME=amardoctor
+DB_USER=postgres
+DB_PASSWORD=postgres
+DB_HOST=db
+DB_PORT=5432
 ```
 
----
+## 🤝 Contributing
 
-## 📜 License
+1. Create a feature branch
+2. Make your changes
+3. Submit a pull request
 
----
+## 📝 License
 
-## ⚙️ Server Optimization
-
-Before deploying to production, apply these optimizations to your host server:
-
-### 1. Redis Memory Overcommit
-Redis requires this setting to handle background saves without performance degradation.
-```bash
-sudo sysctl vm.overcommit_memory=1
-```
-To make it permanent, add `vm.overcommit_memory = 1` to `/etc/sysctl.conf`.
-
----
-
-## ✅ Deployment Checklist
-
-Ensure these steps are completed before going live:
-
-1. [ ] **Environment**: `.env` is configured with `DEBUG=False`.
-2. [ ] **Static Assets**: `STATIC_ROOT` is set and `collectstatic` runs successfully.
-3. [ ] **Migrations**: Database schema is up to date (handled automatically by the `web` container).
-4. [ ] **SSL**: Certificates are initialized via the Certbot command.
-5. [ ] **Proxy**: Nginx is correctly routing traffic to Daphne on port 8000.
-
----
-
-## ☁️ DigitalOcean Deployment (amardoc.reshad.dev)
-
-Follow these steps to deploy the platform to your DigitalOcean droplet:
-
-### 1. Server Setup
-- Create a Ubuntu Droplet.
-- Point your domain `amardoc.reshad.dev` to the Droplet IP.
-- Install Docker and Docker Compose on the server.
-
-### 2. Prepare Environment
-SSH into your droplet and clone the repo:
-```bash
-git clone <your-repo-url> amardoctor
-cd amardoctor
-chmod +x scripts/*.sh
-cp .env.example .env
-```
-Update `.env` with your production values:
-- `DEBUG=False`
-- `DOMAIN=amardoc.reshad.dev`
-- `ALLOWED_HOSTS=amardoc.reshad.dev`
-- `PUBLIC_DOMAIN=https://amardoc.reshad.dev`
-
-### 3. Initialize SSL (Let's Encrypt)
-Run the following command to obtain your first certificate (use `sudo` if you get permission errors):
-```bash
-sudo docker compose -f docker-compose.yml -f docker-compose.prod.yml run --rm certbot \
-  certonly --webroot --webroot-path=/var/www/certbot \
-  -d amardoc.reshad.dev
-```
-
-### 4. Deploy
-Start all services in production mode:
-```bash
-./scripts/deploy.sh prod
-```
-
-### 5. Post-Deployment
-Create your admin user:
-```bash
-docker compose exec web python manage.py createsuperuser
-```
-Check logs to ensure everything is running:
-```bash
-docker compose logs -f
-```
+MIT License

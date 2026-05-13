@@ -1,3 +1,5 @@
+version: '3.8'
+
 services:
   db:
     image: postgres:17-alpine
@@ -6,95 +8,11 @@ services:
       POSTGRES_DB: ${DB_NAME:-amardoctor}
       POSTGRES_USER: ${DB_USER:-postgres}
       POSTGRES_PASSWORD: ${DB_PASSWORD:-postgres}
+    ports:
+      - "${DB_PORT:-5432}:5432"
     volumes:
       - postgres_data:/var/lib/postgresql/data
     restart: always
 
-  redis:
-    image: redis:7-alpine
-    container_name: amardoctor_redis
-    restart: always
-
-  web:
-    build: 
-      context: ./core
-    container_name: amardoctor_web
-    volumes:
-      - static_volume:/app/staticfiles
-      - media_volume:/app/media
-    environment:
-      - DATABASE=postgres
-      - DB_HOST=db
-      - DB_PORT=5432
-      - DB_NAME=${DB_NAME:-amardoctor}
-      - DB_USER=${DB_USER:-postgres}
-      - DB_PASSWORD=${DB_PASSWORD:-postgres}
-      - REDIS_URL=redis://redis:6379/0
-      - CELERY_BROKER_URL=redis://redis:6379/0
-      - CELERY_RESULT_BACKEND=redis://redis:6379/0
-      - RUN_MIGRATIONS=True
-    depends_on:
-      - db
-      - redis
-    restart: always
-
-  celery:
-    build:
-      context: ./core
-    container_name: amardoctor_celery
-    command: celery -A core worker -l info
-    volumes:
-      - media_volume:/app/media
-    environment:
-      - DATABASE=postgres
-      - DB_HOST=db
-      - DB_PORT=5432
-      - DB_NAME=${DB_NAME:-amardoctor}
-      - DB_USER=${DB_USER:-postgres}
-      - DB_PASSWORD=${DB_PASSWORD:-postgres}
-      - REDIS_URL=redis://redis:6379/0
-      - CELERY_BROKER_URL=redis://redis:6379/0
-      - CELERY_RESULT_BACKEND=redis://redis:6379/0
-      - RUN_MIGRATIONS=False
-    depends_on:
-      - db
-      - redis
-    restart: always
-
-  celery-beat:
-    build:
-      context: ./core
-    container_name: amardoctor_celery_beat
-    command: celery -A core beat -l info
-    environment:
-      - DATABASE=postgres
-      - DB_HOST=db
-      - DB_PORT=5432
-      - DB_NAME=${DB_NAME:-amardoctor}
-      - DB_USER=${DB_USER:-postgres}
-      - DB_PASSWORD=${DB_PASSWORD:-postgres}
-      - REDIS_URL=redis://redis:6379/0
-      - CELERY_BROKER_URL=redis://redis:6379/0
-      - CELERY_RESULT_BACKEND=redis://redis:6379/0
-      - RUN_MIGRATIONS=False
-    depends_on:
-      - db
-      - redis
-    restart: always
-
-  nginx:
-    build: ./nginx
-    container_name: amardoctor_nginx
-    ports:
-      - "80:80"
-    volumes:
-      - static_volume:/app/staticfiles
-      - media_volume:/app/media
-    depends_on:
-      - web
-    restart: always
-
 volumes:
   postgres_data:
-  static_volume:
-  media_volume:
