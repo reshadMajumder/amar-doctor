@@ -154,9 +154,9 @@ Update `.env` with your production values:
 - `PUBLIC_DOMAIN=https://amardoc.reshad.dev`
 
 ### 3. Initialize SSL (Let's Encrypt)
-Run the following command to obtain your first certificate:
+Run the following command to obtain your first certificate (use `sudo` if you get permission errors):
 ```bash
-docker compose -f docker compose.yml -f docker compose.prod.yml run --rm certbot \
+sudo docker compose -f docker-compose.yml -f docker-compose.prod.yml run --rm certbot \
   certonly --webroot --webroot-path=/var/www/certbot \
   -d amardoc.reshad.dev
 ```
