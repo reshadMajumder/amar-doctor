@@ -75,7 +75,7 @@ The complete API documentation is available as a Postman Collection.
 
 Run the test suite using `pytest`:
 ```bash
-docker-compose exec web pytest
+docker compose exec web pytest
 ```
 
 ---
@@ -88,24 +88,24 @@ docker-compose exec web pytest
 | :--- | :--- |
 | `./scripts/deploy.sh dev` | **Daily Development**. Enables hot-reloading for code changes and keeps debug mode ON. |
 | `./scripts/deploy.sh prod` | **Production Testing**. Starts Nginx with SSL and Daphne. Use this for final staging checks. |
-| `docker-compose down` | **Stop Services**. Safely stops and removes all running containers. |
+| `docker compose down` | **Stop Services**. Safely stops and removes all running containers. |
 
 ### Database & Management
 
 | Command | When to use |
 | :--- | :--- |
-| `docker-compose exec web python manage.py makemigrations` | **Schema Changes**. Run this after adding or modifying Django models. |
-| `docker-compose exec web python manage.py migrate` | **Apply Changes**. Syncs the database with your latest migration files. |
-| `docker-compose exec web python manage.py createsuperuser` | **Admin Access**. Create the first administrative account for the dashboard. |
-| `docker-compose exec web python manage.py shell` | **Debugging**. Opens a Python REPL inside the running web container. |
+| `docker compose exec web python manage.py makemigrations` | **Schema Changes**. Run this after adding or modifying Django models. |
+| `docker compose exec web python manage.py migrate` | **Apply Changes**. Syncs the database with your latest migration files. |
+| `docker compose exec web python manage.py createsuperuser` | **Admin Access**. Create the first administrative account for the dashboard. |
+| `docker compose exec web python manage.py shell` | **Debugging**. Opens a Python REPL inside the running web container. |
 
 ### Logs & Monitoring
 
 | Command | When to use |
 | :--- | :--- |
-| `docker-compose logs -f` | **Full Monitoring**. Watch realtime logs for all services (DB, Web, Celery). |
-| `docker-compose logs -f web` | **Web Debugging**. Specifically monitor Django/Daphne request logs. |
-| `docker-compose logs -f celery` | **Task Debugging**. Track background tasks, AI processing, and emails. |
+| `docker compose logs -f` | **Full Monitoring**. Watch realtime logs for all services (DB, Web, Celery). |
+| `docker compose logs -f web` | **Web Debugging**. Specifically monitor Django/Daphne request logs. |
+| `docker compose logs -f celery` | **Task Debugging**. Track background tasks, AI processing, and emails. |
 
 ---
 
@@ -156,7 +156,7 @@ Update `.env` with your production values:
 ### 3. Initialize SSL (Let's Encrypt)
 Run the following command to obtain your first certificate:
 ```bash
-docker-compose -f docker-compose.yml -f docker-compose.prod.yml run --rm certbot \
+docker compose -f docker compose.yml -f docker compose.prod.yml run --rm certbot \
   certonly --webroot --webroot-path=/var/www/certbot \
   -d amardoc.reshad.dev
 ```
@@ -170,9 +170,9 @@ Start all services in production mode:
 ### 5. Post-Deployment
 Create your admin user:
 ```bash
-docker-compose exec web python manage.py createsuperuser
+docker compose exec web python manage.py createsuperuser
 ```
 Check logs to ensure everything is running:
 ```bash
-docker-compose logs -f
+docker compose logs -f
 ```
