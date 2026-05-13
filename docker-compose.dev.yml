@@ -1,0 +1,14 @@
+version: '3.8'
+
+services:
+  web:
+    volumes:
+      - ./core:/app
+    environment:
+      - DEBUG=True
+    ports:
+      - "8000:8000"
+
+  db:
+    ports:
+      - "5432:5432"
