@@ -1,6 +1,6 @@
 import pytest
 from django.utils import timezone
-from datetime import time, date, timedelta
+from datetime import time, date, timedelta, datetime
 from accounts.models import User
 from appointments.models import DoctorAvailability, Appointment
 from appointments.services.slot_generation_service import SlotGenerationService
@@ -67,4 +67,82 @@ class TestSlotGeneration:
         assert len(slots) == 1
         assert slots[0]['start'].time() == time(9, 30)
 
-from datetime import datetime
+@pytest.mark.django_db
+class TestAppointmentWorkflow:
+    @pytest.fixture
+    def setup_data(self):
+        doctor = User.objects.create_user(email='doc@test.com', password='password123', full_name='Dr. Doc', role='doctor')
+        patient = User.objects.create_user(email='pat@test.com', password='password123', full_name='Pat', role='patient')
+        return doctor, patient
+
+    def test_create_appointment_success(self, setup_data):
+        doctor, patient = setup_data
+        start = timezone.now() + timedelta(days=1)
+        end = start + timedelta(minutes=30)
+        
+        appointment = Appointment.objects.create(
+            patient=patient,
+            doctor=doctor,
+            scheduled_start=start,
+            scheduled_end=end,
+            status='pending',
+            consultation_fee=500
+        )
+        
+        assert appointment.id is not None
+        assert appointment.status == 'pending'
+        assert appointment.patient == patient
+
+    def test_status_transition_to_completed(self, setup_data):
+        doctor, patient = setup_data
+        appointment = Appointment.objects.create(
+            patient=patient,
+            doctor=doctor,
+            scheduled_start=timezone.now(),
+            scheduled_end=timezone.now() + timedelta(minutes=30),
+            status='confirmed',
+            consultation_fee=500
+        )
+        
+        appointment.status = 'completed'
+        appointment.save()
+        
+        assert appointment.status == 'completed'
+
+from rest_framework.test import APIClient
+from rest_framework import status
+from django.urls import reverse
+
+@pytest.mark.django_db
+class TestAppointmentAPI:
+    @pytest.fixture
+    def api_client(self):
+        return APIClient()
+
+    @pytest.fixture
+    def setup_users(self):
+        doctor = User.objects.create_user(email='doc_api@test.com', password='password123', full_name='Dr. API', role='doctor', is_verified=True)
+        patient = User.objects.create_user(email='pat_api@test.com', password='password123', full_name='Pat API', role='patient', is_verified=True)
+        return doctor, patient
+
+    def test_list_appointments_patient(self, api_client, setup_users):
+        doctor, patient = setup_users
+        api_client.force_authenticate(user=patient)
+        
+        url = reverse('appointment-list')
+        response = api_client.get(url)
+        assert response.status_code == status.HTTP_200_OK
+
+    def test_doctor_availability_api(self, api_client, setup_users):
+        doctor, patient = setup_users
+        api_client.force_authenticate(user=doctor)
+        
+        url = reverse('doctor-availability-list')
+        data = {
+            "weekday": 1,
+            "start_time": "09:00:00",
+            "end_time": "12:00:00",
+            "slot_duration_minutes": 30
+        }
+        response = api_client.post(url, data)
+        assert response.status_code == status.HTTP_201_CREATED

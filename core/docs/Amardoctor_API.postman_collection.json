@@ -1153,6 +1153,183 @@
       ]
     },
     {
+      "name": "Admin Operations",
+      "item": [
+        {
+          "name": "1. Admin Dashboard Overview",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{access_token}}"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/api/v1/admin/dashboard/",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "admin",
+                "dashboard",
+                ""
+              ]
+            }
+          }
+        },
+        {
+          "name": "2. Doctor Verification List",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{access_token}}"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/api/v1/admin/doctor-verification/",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "admin",
+                "doctor-verification",
+                ""
+              ]
+            }
+          }
+        },
+        {
+          "name": "3. Approve Doctor",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{access_token}}"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n    \"notes\": \"BMDC verified successfully.\"\n}"
+            },
+            "url": {
+              "raw": "{{base_url}}/api/v1/admin/doctor-verification/{{doctor_id}}/approve/",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "admin",
+                "doctor-verification",
+                "{{doctor_id}}",
+                "approve",
+                ""
+              ]
+            }
+          }
+        },
+        {
+          "name": "4. User Moderation - Suspend",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{access_token}}"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n    \"reason\": \"Suspicious activity detected.\"\n}"
+            },
+            "url": {
+              "raw": "{{base_url}}/api/v1/admin/moderation/users/{{patient_id}}/suspend/",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "admin",
+                "moderation",
+                "users",
+                "{{patient_id}}",
+                "suspend",
+                ""
+              ]
+            }
+          }
+        },
+        {
+          "name": "5. Financial Overview",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{access_token}}"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/api/v1/admin/financials/overview/",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "admin",
+                "financials",
+                "overview",
+                ""
+              ]
+            }
+          }
+        },
+        {
+          "name": "6. Audit Logs",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{access_token}}"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/api/v1/admin/audit-logs/",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "admin",
+                "audit-logs",
+                ""
+              ]
+            }
+          }
+        }
+      ]
+    },
+    {
       "name": "WebSockets",
       "item": [
         {
@@ -1338,6 +1515,11 @@
     },
     {
       "key": "room_id",
+      "value": "",
+      "type": "string"
+    },
+    {
+      "key": "patient_id",
       "value": "",
       "type": "string"
     }
