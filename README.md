@@ -2,6 +2,33 @@
 
 A comprehensive AI-powered healthcare platform connecting patients with doctors for virtual consultations, medical guidance, and emergency triage.
 
+> **⚠️ Important**: This project uses a production-ready Docker deployment architecture. See [DEPLOYMENT.md](DEPLOYMENT.md) for detailed setup instructions.
+
+## 🚀 Quick Start
+
+### Development (with hot reload)
+```bash
+./scripts/setup-dev.sh
+# or
+docker compose -f docker-compose.dev.yml up --build
+```
+
+### Production (with SSL)
+```bash
+./scripts/deploy.sh
+# or
+docker compose -f docker-compose.prod.yml up -d --build
+```
+
+### Using Makefile
+```bash
+make dev-up        # Start development
+make prod-up       # Start production
+make help          # View all commands
+```
+
+---
+
 ## 🚀 Features
 
 ### 👨‍⚕️ For Doctors
@@ -21,30 +48,33 @@ A comprehensive AI-powered healthcare platform connecting patients with doctors 
 ## ⚙️ Tech Stack
 
 ### Backend
-- **Framework**: Django 6.0
+- **Framework**: Django 6.0 with ASGI (Uvicorn)
 - **Database**: PostgreSQL 17
 - **AI**: Google Gemini API
-- **Async**: Django Channels & Daphne
+- **Real-time**: Django Channels & WebSockets
 - **Caching**: Redis
 - **Authentication**: JWT (JSON Web Tokens)
-- **Task Queue**: Celery
+- **Task Queue**: Celery with Beat scheduler
+- **Web Server**: Nginx with SSL/TLS
 
 ### Frontend
 - **Framework**: React
 - **Styling**: Tailwind CSS
 - **State Management**: Zustand
-- **Notifications**: Socket.IO
+- **Notifications**: WebSockets
 
 ### Infrastructure
-- **Containerization**: Docker & Docker Compose
-- **Web Server**: Nginx
-- **Proxy**: Gunicorn
+- **Containerization**: Docker & Docker Compose (dev/prod)
+- **Web Server**: Nginx reverse proxy
+- **ASGI Server**: Uvicorn
+- **SSL**: Certbot + Let's Encrypt
 
 ## 📦 Installation
 
 ### Prerequisites
 - Docker
 - Docker Compose
+- Git
 
 ### Quick Start
 

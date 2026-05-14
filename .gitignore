@@ -120,12 +120,28 @@ celerybeat.pid
 
 # Environments
 .env
+.env.prod
+.env.local
 .venv
 env/
 venv/
 ENV/
 env.bak/
 venv.bak/
+
+# Production Secrets
+.env.prod.local
+!.env.prod.template
+
+# SSL Certificates
+ssl/certbot/conf/
+ssl/certbot/www/
+ssl/live/
+ssl/*.pem
+
+# Build outputs
+staticfiles/
+media/
 
 # Spyder project settings
 .spyderproject

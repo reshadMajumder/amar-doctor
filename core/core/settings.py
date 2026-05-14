@@ -15,10 +15,17 @@ from pathlib import Path
 from dotenv import load_dotenv
 
 # Build paths inside the project like this: BASE_DIR / 'subdir'.
-BASE_DIR = Path(__file__).resolve().parent.parent
+BASE_DIR = Path(__file__).resolve().parent.parent.parent
 
-# Load environment variables from .env file
-load_dotenv(BASE_DIR / '.env')
+# Determine environment and load appropriate .env file
+ENVIRONMENT = os.getenv('ENVIRONMENT', 'dev').lower()
+if ENVIRONMENT == 'prod':
+    env_file = BASE_DIR / '.env.prod'
+else:
+    env_file = BASE_DIR / '.env.dev'
+
+# Load environment variables from appropriate .env file
+load_dotenv(env_file)
 
 
 # Quick-start development settings - unsuitable for production
@@ -30,7 +37,11 @@ SECRET_KEY = os.getenv('SECRET_KEY', 'django-insecure-fallback-key')
 # SECURITY WARNING: don't run with debug turned on in production!
 DEBUG = os.getenv('DEBUG', 'False').lower() in ('true', '1', 't')
 
-ALLOWED_HOSTS = ["*"]
+# Configure ALLOWED_HOSTS based on environment
+if DEBUG:
+    ALLOWED_HOSTS = ["*"]
+else:
+    ALLOWED_HOSTS = os.getenv('ALLOWED_HOSTS', 'amardoc.reshad.dev').split(',')
 
 
 # Application definition
@@ -66,6 +77,7 @@ INSTALLED_APPS = [
 
 MIDDLEWARE = [
     'django.middleware.security.SecurityMiddleware',
+    'whitenoise.middleware.WhiteNoiseMiddleware',  # Static files in production
     'corsheaders.middleware.CorsMiddleware',
     'django.contrib.sessions.middleware.SessionMiddleware',
     'django.middleware.common.CommonMiddleware',
@@ -156,6 +168,14 @@ USE_TZ = True
 # https://docs.djangoproject.com/en/6.0/howto/static-files/
 
 STATIC_URL = 'static/'
+STATIC_ROOT = BASE_DIR / 'staticfiles'
+
+# Media files
+MEDIA_URL = 'media/'
+MEDIA_ROOT = BASE_DIR / 'media'
+
+# WhiteNoise configuration for static files in production
+STATICFILES_STORAGE = 'whitenoise.storage.CompressedManifestStaticFilesStorage'
 
 # Default primary key field type
 # https://docs.djangoproject.com/en/6.0/ref/settings/#default-auto-field
@@ -165,8 +185,29 @@ DEFAULT_AUTO_FIELD = 'django.db.models.BigAutoField'
 # Custom User Model
 AUTH_USER_MODEL = 'accounts.User'
 
-# CORS Settings
-CORS_ALLOW_ALL_ORIGINS = True # Change in production!
+# CORS Settings - Environment specific
+if DEBUG:
+    CORS_ALLOW_ALL_ORIGINS = True
+else:
+    CORS_ALLOWED_ORIGINS = os.getenv('CORS_ALLOWED_ORIGINS', 'https://amardoc.reshad.dev').split(',')
+    CORS_ALLOWED_ORIGINS = [origin.strip() for origin in CORS_ALLOWED_ORIGINS]
+
+# Security Headers for Production
+if not DEBUG:
+    SECURE_BROWSER_XSS_FILTER = True
+    SECURE_CONTENT_SECURITY_POLICY = {
+        'default-src': ("'self'",),
+        'style-src': ("'self'", "'unsafe-inline'"),
+        'script-src': ("'self'", "'unsafe-inline'"),
+        'img-src': ("'self'", "data:", "https:"),
+    }
+    SECURE_SSL_REDIRECT = True
+    SESSION_COOKIE_SECURE = True
+    CSRF_COOKIE_SECURE = True
+    SECURE_HSTS_SECONDS = 31536000
+    SECURE_HSTS_INCLUDE_SUBDOMAINS = True
+    SECURE_HSTS_PRELOAD = True
+    SECURE_PROXY_SSL_HEADER = ('HTTP_X_FORWARDED_PROTO', 'https')
 
 # REST Framework Settings
 REST_FRAMEWORK = {
