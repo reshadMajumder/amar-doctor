@@ -9,6 +9,9 @@ NC='\033[0m'
 APP_PORT=${PORT:-8000}
 cd /app
 
+# Ensure staticfiles and media directories exist with correct permissions
+mkdir -p /app/staticfiles /app/media
+
 echo -e "${YELLOW}[PROD] Waiting for postgres...${NC}"
 while ! nc -z $DB_HOST $DB_PORT; do
   sleep 0.1
