@@ -15,14 +15,14 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
     && rm -rf /var/lib/apt/lists/*
 
 # Copy requirements
-COPY requirements/base.txt requirements/prod.txt /tmp/
+COPY requirements.txt /tmp/
 
 # Create virtual environment
 RUN python -m venv /opt/venv
 ENV PATH="/opt/venv/bin:$PATH"
 
 # Install Python dependencies
-RUN pip install -r /tmp/prod.txt
+RUN pip install -r /tmp/requirements.txt
 
 # Final production image
 FROM python:3.12-slim
@@ -37,6 +37,7 @@ WORKDIR /app
 # Install only runtime dependencies
 RUN apt-get update && apt-get install -y --no-install-recommends \
     libpq5 \
+    netcat-traditional \
     && rm -rf /var/lib/apt/lists/*
 
 # Copy virtual environment from builder

@@ -12,13 +12,14 @@ WORKDIR /app
 RUN apt-get update && apt-get install -y --no-install-recommends \
     build-essential \
     libpq-dev \
+    netcat-traditional \
     && rm -rf /var/lib/apt/lists/*
 
 # Copy requirements
-COPY requirements/base.txt requirements/dev.txt /tmp/
+COPY requirements.txt /tmp/
 
 # Install Python dependencies
-RUN pip install -r /tmp/dev.txt
+RUN pip install -r /tmp/requirements.txt
 
 # Copy project (source code will be mounted as volume for hot reload)
 COPY core/manage.py .

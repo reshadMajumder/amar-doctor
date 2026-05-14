@@ -27,8 +27,6 @@ make prod-up       # Start production
 make help          # View all commands
 ```
 
----
-
 ## 🚀 Features
 
 ### 👨‍⚕️ For Doctors
