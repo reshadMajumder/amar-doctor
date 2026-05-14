@@ -7,7 +7,7 @@ services:
       POSTGRES_DB: ${DB_NAME}
       POSTGRES_USER: ${DB_USER}
       POSTGRES_PASSWORD: ${DB_PASSWORD}
-      POSTGRES_INITDB_ARGS: "--encoding=UTF8 --shared_buffers=256MB --max_connections=200"
+      POSTGRES_INITDB_ARGS: "--encoding=UTF8"
     restart: always
     volumes:
       - postgres_data_prod:/var/lib/postgresql/data
