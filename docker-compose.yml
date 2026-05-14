@@ -1,4 +1,4 @@
-﻿services:
+services:
   db:
     image: postgres:17-alpine
     restart: unless-stopped
@@ -47,6 +47,8 @@
       context: ./core
       dockerfile: Dockerfile
     restart: unless-stopped
+    volumes:
+      - media_data:/app/media
     env_file:
       - ./core/.env
     environment:
@@ -92,6 +94,8 @@
       dockerfile: Dockerfile
     command: celery -A core worker -l info
     restart: unless-stopped
+    volumes:
+      - media_data:/app/media
     env_file:
       - ./core/.env
     environment:
@@ -137,6 +141,7 @@
 volumes:
   redis_data:
   postgres_data:
+  media_data:
 
 networks:
   amardoctor_net:
