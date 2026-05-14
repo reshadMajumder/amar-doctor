@@ -92,6 +92,9 @@ class AuthService:
         if not user.is_verified:
             return False, "Account is not verified. Please verify your email or wait for admin approval."
 
+        if user.is_suspended:
+            return False, f"Your account has been suspended. Reason: {user.suspension_reason or 'No reason provided'}"
+
         tokens = self.token_service.get_tokens_for_user(user)
         return True, {
             'tokens': tokens,
@@ -125,6 +128,8 @@ class AuthService:
 
         try:
             user = User.objects.get(email=email)
+            if user.is_suspended:
+                return False, f"Your account has been suspended. Reason: {user.suspension_reason or 'No reason provided'}"
             tokens = self.token_service.get_tokens_for_user(user)
             return True, {
                 'tokens': tokens,

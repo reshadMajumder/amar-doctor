@@ -1,8 +1,3 @@
 from django.contrib import admin
 
-# Register your models here.
-
-from .models import PaymentTransaction, PlatformSettings
-
-admin.site.register(PaymentTransaction)
-admin.site.register(PlatformSettings)
+# Models are registered in admin_panel app for better control

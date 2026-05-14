@@ -60,6 +60,8 @@ INSTALLED_APPS = [
     'chat',
     'prescriptions',
     'notifications',
+    'admin_panel',
+    'audit_logs',
 ]
 
 MIDDLEWARE = [
@@ -71,6 +73,7 @@ MIDDLEWARE = [
     'django.contrib.auth.middleware.AuthenticationMiddleware',
     'django.contrib.messages.middleware.MessageMiddleware',
     'django.middleware.clickjacking.XFrameOptionsMiddleware',
+    'audit_logs.middleware.audit_middleware.AuditContextMiddleware',
 ]
 
 ROOT_URLCONF = 'core.urls'

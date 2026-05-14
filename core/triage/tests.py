@@ -1,19 +1,29 @@
 import pytest
 from unittest.mock import patch, AsyncMock
 from django.contrib.auth import get_user_model
+from django.urls import reverse
+from rest_framework import status
+from rest_framework.test import APIClient
 from triage.models import AITriageSession, AITriageMessage, AIReport
 from triage.services.ai_orchestrator import AIOrchestrator
 from triage.services.emergency_service import EmergencyService
+from triage.services.report_service import ReportService
 
 User = get_user_model()
 
 @pytest.fixture
 def patient():
-    return User.objects.create_user(email="testpatient@test.com", password="password", full_name="Test", role="patient", is_verified=True)
+    return User.objects.create_user(email="testpatient@test.com", password="password123", full_name="Test", role="patient", is_verified=True)
 
 @pytest.fixture
 def session(patient):
     return AITriageSession.objects.create(patient=patient)
+
+@pytest.fixture
+def auth_client(patient):
+    client = APIClient()
+    client.force_authenticate(user=patient)
+    return client
 
 @pytest.mark.django_db
 class TestEmergencyService:
@@ -68,3 +78,79 @@ class TestAIOrchestrator:
         session.refresh_from_db()
         assert session.status == 'waiting_for_patient'
         assert session.current_step == 2
+
+    @patch('triage.services.ai_orchestrator.get_channel_layer')
+    @patch('triage.ai_providers.factory.AIProviderFactory.get_provider')
+    def test_emergency_triggers_immediate_report(self, mock_get_provider, mock_channel_layer, session):
+        mock_channel_layer.return_value.group_send = AsyncMock()
+        mock_provider = mock_get_provider.return_value
+        
+        mock_provider.generate_json.side_effect = [
+            {"is_emergency": True, "reason": "Severe chest pain", "risk_level": "emergency"}, # Emergency Check
+            { # Report Generation
+                "extracted_symptoms": ["chest pain"],
+                "risk_category": "emergency",
+                "ai_summary": "Emergency",
+                "recommended_specialization": "ER"
+            }
+        ]
+        
+        msg = AITriageMessage.objects.create(session=session, sender_type='patient', message_type='symptom', content="My chest hurts bad")
+        
+        orchestrator = AIOrchestrator()
+        orchestrator.process_patient_message(session.id, msg.id)
+        
+        session.refresh_from_db()
+        assert session.emergency_detected is True
+        assert session.status == 'completed'
+        assert hasattr(session, 'report')
+
+@pytest.mark.django_db
+class TestTriageReportService:
+    @patch('triage.ai_providers.factory.AIProviderFactory.get_provider')
+    def test_generate_report_success(self, mock_get_provider, session):
+        mock_provider = mock_get_provider.return_value
+        mock_provider.generate_json.return_value = {
+            "extracted_symptoms": ["headache", "nausea"],
+            "symptom_duration": "2 days",
+            "severity_level": "moderate",
+            "follow_up_answers": {"nausea": "yes"},
+            "emergency_flags": [],
+            "ai_summary": "Patient has persistent headache.",
+            "risk_category": "medium",
+            "recommended_specialization": "Neurology",
+            "triage_score": 65.5,
+            "ai_confidence_score": 0.9
+        }
+        
+        service = ReportService()
+        report = service.generate_report(session.id)
+        
+        assert isinstance(report, AIReport)
+        assert report.session == session
+        assert report.risk_category == "medium"
+        
+        session.refresh_from_db()
+        assert session.status == 'completed'
+
+@pytest.mark.django_db
+class TestTriageAPI:
+    def test_create_session(self, auth_client):
+        url = reverse('triage-session-list')
+        response = auth_client.post(url)
+        assert response.status_code == status.HTTP_201_CREATED
+        assert response.data['success'] is True
+
+    def test_list_sessions(self, auth_client, session):
+        url = reverse('triage-session-list')
+        response = auth_client.get(url)
+        assert response.status_code == status.HTTP_200_OK
+        assert len(response.data) >= 1
+
+    def test_patient_cannot_see_other_sessions(self, auth_client, patient):
+        other_patient = User.objects.create_user(email="other@test.com", password="password123", full_name="Other")
+        other_session = AITriageSession.objects.create(patient=other_patient)
+        
+        url = reverse('triage-session-detail', args=[other_session.id])
+        response = auth_client.get(url)
+        assert response.status_code == status.HTTP_404_NOT_FOUND
