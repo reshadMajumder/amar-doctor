@@ -42,7 +42,7 @@ amardoctor/
 
 ```bash
 # Start all services with hot reload
-docker compose -f docker-compose.dev.yml up --build
+docker compose --env-file .env.dev -f docker-compose.dev.yml up --build
 
 # Access the application
 # API: http://localhost/api/
@@ -71,7 +71,7 @@ Changes to Python files automatically reload via Uvicorn:
 
 ```bash
 # Create superuser (one-time)
-docker compose -f docker-compose.dev.yml exec django python manage.py createsuperuser
+docker compose --env-file .env.dev -f docker-compose.dev.yml exec django python manage.py createsuperuser
 
 # Access admin
 http://localhost/admin/
@@ -80,19 +80,19 @@ http://localhost/admin/
 ### Run Tests
 
 ```bash
-docker compose -f docker-compose.dev.yml exec django pytest
+docker compose --env-file .env.dev -f docker-compose.dev.yml exec django pytest
 ```
 
 ### View Logs
 
 ```bash
 # All services
-docker compose -f docker-compose.dev.yml logs -f
+docker compose --env-file .env.dev -f docker-compose.dev.yml logs -f
 
 # Specific service
-docker compose -f docker-compose.dev.yml logs -f django
-docker compose -f docker-compose.dev.yml logs -f celery
-docker compose -f docker-compose.dev.yml logs -f nginx
+docker compose --env-file .env.dev -f docker-compose.dev.yml logs -f django
+docker compose --env-file .env.dev -f docker-compose.dev.yml logs -f celery
+docker compose --env-file .env.dev -f docker-compose.dev.yml logs -f nginx
 ```
 
 ---
@@ -162,7 +162,7 @@ Use this order exactly:
 1. Start Nginx on port 80 only.
 2. Confirm HTTP works on `http://amardoc.reshad.dev`.
 3. Run Certbot to generate the first certificate.
-4. Add HTTPS back only after the certificate exists.
+4. Restore the HTTPS blocks in `nginx/prod/default.conf` only after the certificate exists.
 5. Reload Nginx and verify HTTPS.
 
 ### Initial SSL Certificate
@@ -174,25 +174,26 @@ Before enabling HTTPS, you need an initial SSL certificate:
 docker run -it --rm \
   -v /path/to/ssl/certbot/conf:/etc/letsencrypt \
   -v /path/to/ssl/www:/var/www/certbot \
-  certbot/certbot certonly --standalone \
+  certbot/certbot certonly --webroot \
+  -w /var/www/certbot \
   -d amardoc.reshad.dev \
   --agree-tos \
   --email your-email@example.com
 
-# After the certificate exists, switch Nginx to HTTPS-enabled config and reload it
+# After the certificate exists, restore the HTTPS server blocks in `nginx/prod/default.conf` and reload Nginx
 ```
 
 ### Start Production Services
 
 ```bash
 # Build and start the HTTP bootstrap stack (detached)
-docker compose -f docker-compose.prod.yml up -d --build
+docker compose --env-file .env.prod -f docker-compose.prod.yml up -d --build
 
 # Verify all services are running
-docker compose -f docker-compose.prod.yml ps
+docker compose --env-file .env.prod -f docker-compose.prod.yml ps
 
 # Check logs
-docker compose -f docker-compose.prod.yml logs -f
+docker compose --env-file .env.prod -f docker-compose.prod.yml logs -f
 ```
 
 ### Verify Deployment
@@ -213,11 +214,11 @@ wscat -c ws://amardoc.reshad.dev/ws/your-consumer-path/
 
 ### Enable HTTPS After Certificate Creation
 
-Once Certbot has created the certificate and placed it under `ssl/certbot/conf`, switch Nginx to the HTTPS-enabled config, then reload Nginx.
+Once Certbot has created the certificate and placed it under `ssl/certbot/conf`, restore the HTTPS server blocks in `nginx/prod/default.conf`, then reload Nginx.
 
 ```bash
 # Reload Nginx after enabling the HTTPS config
-docker compose -f docker-compose.prod.yml exec nginx nginx -s reload
+docker compose --env-file .env.prod -f docker-compose.prod.yml exec nginx nginx -s reload
 
 # Verify HTTPS after the certificate is present
 curl https://amardoc.reshad.dev/health/
@@ -227,10 +228,10 @@ curl https://amardoc.reshad.dev/health/
 
 ```bash
 # Run migrations
-docker compose -f docker-compose.prod.yml exec django python manage.py migrate
+docker compose --env-file .env.prod -f docker-compose.prod.yml exec django python manage.py migrate
 
 # Create superuser
-docker compose -f docker-compose.prod.yml exec django python manage.py createsuperuser
+docker compose --env-file .env.prod -f docker-compose.prod.yml exec django python manage.py createsuperuser
 ```
 
 ### SSL Certificate Renewal
@@ -238,14 +239,14 @@ docker compose -f docker-compose.prod.yml exec django python manage.py createsup
 Certbot in production automatically renews certificates every 12 hours after HTTPS is enabled. Check renewal logs:
 
 ```bash
-docker compose -f docker-compose.prod.yml logs certbot
+docker compose --env-file .env.prod -f docker-compose.prod.yml logs certbot
 ```
 
 To manually renew:
 
 ```bash
-docker compose -f docker-compose.prod.yml exec certbot certbot renew
-docker compose -f docker-compose.prod.yml exec nginx nginx -s reload
+docker compose --env-file .env.prod -f docker-compose.prod.yml exec certbot certbot renew
+docker compose --env-file .env.prod -f docker-compose.prod.yml exec nginx nginx -s reload
 ```
 
 ### Nginx Bootstrap Notes
@@ -267,10 +268,10 @@ To backup:
 
 ```bash
 # Backup PostgreSQL
-docker compose -f docker-compose.prod.yml exec db pg_dump -U postgres -d amardoctor_prod > backup.sql
+docker compose --env-file .env.prod -f docker-compose.prod.yml exec db pg_dump -U postgres -d amardoctor_prod > backup.sql
 
 # Restore PostgreSQL
-cat backup.sql | docker compose -f docker-compose.prod.yml exec -T db psql -U postgres -d amardoctor_prod
+cat backup.sql | docker compose --env-file .env.prod -f docker-compose.prod.yml exec -T db psql -U postgres -d amardoctor_prod
 ```
 
 ---
@@ -281,29 +282,29 @@ cat backup.sql | docker compose -f docker-compose.prod.yml exec -T db psql -U po
 
 ```bash
 # All services
-docker compose -f docker-compose.prod.yml logs -f
+docker compose --env-file .env.prod -f docker-compose.prod.yml logs -f
 
 # Specific service
-docker compose -f docker-compose.prod.yml logs -f django
-docker compose -f docker-compose.prod.yml logs -f celery
-docker compose -f docker-compose.prod.yml logs -f nginx
+docker compose --env-file .env.prod -f docker-compose.prod.yml logs -f django
+docker compose --env-file .env.prod -f docker-compose.prod.yml logs -f celery
+docker compose --env-file .env.prod -f docker-compose.prod.yml logs -f nginx
 ```
 
 ### Restart Services
 
 ```bash
 # Restart specific service
-docker compose -f docker-compose.prod.yml restart django
+docker compose --env-file .env.prod -f docker-compose.prod.yml restart django
 
 # Restart all
-docker compose -f docker-compose.prod.yml restart
+docker compose --env-file .env.prod -f docker-compose.prod.yml restart
 ```
 
 ### Scale Workers
 
 ```bash
 # Increase Celery workers
-docker compose -f docker-compose.prod.yml up -d --scale celery=3
+docker compose --env-file .env.prod -f docker-compose.prod.yml up -d --scale celery=3
 ```
 
 ### Database Backup Schedule
@@ -312,7 +313,7 @@ Add to crontab:
 
 ```bash
 # Daily backup at 2 AM
-0 2 * * * docker compose -f /path/to/docker-compose.prod.yml exec db pg_dump -U postgres -d amardoctor_prod > /path/to/backups/backup-$(date +\%Y\%m\%d).sql
+0 2 * * * docker compose --env-file /path/to/.env.prod -f /path/to/docker-compose.prod.yml exec db pg_dump -U postgres -d amardoctor_prod > /path/to/backups/backup-$(date +\%Y\%m\%d).sql
 ```
 
 ---
@@ -326,10 +327,10 @@ Add to crontab:
 **Check**:
 ```bash
 # Verify Nginx is proxying WebSocket headers
-docker compose -f docker-compose.prod.yml logs nginx | grep -i upgrade
+docker compose --env-file .env.prod -f docker-compose.prod.yml logs nginx | grep -i upgrade
 
 # Verify Redis is running
-docker compose -f docker-compose.prod.yml logs redis | grep -i "ready"
+docker compose --env-file .env.prod -f docker-compose.prod.yml logs redis | grep -i "ready"
 ```
 
 **Fix**:
@@ -346,16 +347,16 @@ proxy_set_header Connection "upgrade";
 **Check**:
 ```bash
 # Verify collectstatic ran
-docker compose -f docker-compose.prod.yml logs django | grep "collectstatic"
+docker compose --env-file .env.prod -f docker-compose.prod.yml logs django | grep "collectstatic"
 
 # Verify files exist
-docker compose -f docker-compose.prod.yml exec django ls -la /app/staticfiles/
+docker compose --env-file .env.prod -f docker-compose.prod.yml exec django ls -la /app/staticfiles/
 ```
 
 **Fix**:
 ```bash
-docker compose -f docker-compose.prod.yml exec django python manage.py collectstatic --noinput --clear
-docker compose -f docker-compose.prod.yml restart nginx
+docker compose --env-file .env.prod -f docker-compose.prod.yml exec django python manage.py collectstatic --noinput --clear
+docker compose --env-file .env.prod -f docker-compose.prod.yml restart nginx
 ```
 
 ### Database Connection Errors
@@ -365,20 +366,20 @@ docker compose -f docker-compose.prod.yml restart nginx
 **Check**:
 ```bash
 # Verify DB is running and healthy
-docker compose -f docker-compose.prod.yml ps db
+docker compose --env-file .env.prod -f docker-compose.prod.yml ps db
 
 # Check DB logs
-docker compose -f docker-compose.prod.yml logs db
+docker compose --env-file .env.prod -f docker-compose.prod.yml logs db
 ```
 
 **Fix**:
 ```bash
 # Run migrations
-docker compose -f docker-compose.prod.yml exec django python manage.py migrate
+docker compose --env-file .env.prod -f docker-compose.prod.yml exec django python manage.py migrate
 
 # Recreate volumes if corrupted
-docker compose -f docker-compose.prod.yml down -v
-docker compose -f docker-compose.prod.yml up -d
+docker compose --env-file .env.prod -f docker-compose.prod.yml down -v
+docker compose --env-file .env.prod -f docker-compose.prod.yml up -d
 ```
 
 ### High Memory Usage
@@ -406,7 +407,7 @@ docker stats
 All services have health checks configured. View status:
 
 ```bash
-docker compose -f docker-compose.prod.yml ps
+docker compose --env-file .env.prod -f docker-compose.prod.yml ps
 ```
 
 Expected: `healthy` status for all services
@@ -418,7 +419,7 @@ Expected: `healthy` status for all services
 docker stats
 
 # View database metrics
-docker compose -f docker-compose.prod.yml exec db psql -U postgres -c "SELECT * FROM pg_stat_statements;"
+docker compose --env-file .env.prod -f docker-compose.prod.yml exec db psql -U postgres -c "SELECT * FROM pg_stat_statements;"
 ```
 
 ### Logging
@@ -427,7 +428,7 @@ All services log to stdout, captured by Docker:
 
 ```bash
 # Real-time logs with timestamps
-docker compose -f docker-compose.prod.yml logs -f --timestamps
+docker compose --env-file .env.prod -f docker-compose.prod.yml logs -f --timestamps
 ```
 
 ---
@@ -454,34 +455,34 @@ docker compose -f docker-compose.prod.yml logs -f --timestamps
 ### Development
 ```bash
 # Start
-docker compose -f docker-compose.dev.yml up --build
+docker compose --env-file .env.dev -f docker-compose.dev.yml up --build
 
 # Stop
-docker compose -f docker-compose.dev.yml down
+docker compose --env-file .env.dev -f docker-compose.dev.yml down
 
 # Logs
-docker compose -f docker-compose.dev.yml logs -f
+docker compose --env-file .env.dev -f docker-compose.dev.yml logs -f
 
 # Run command
-docker compose -f docker-compose.dev.yml exec django python manage.py <command>
+docker compose --env-file .env.dev -f docker-compose.dev.yml exec django python manage.py <command>
 ```
 
 ### Production
 ```bash
 # Start
-docker compose -f docker-compose.prod.yml up -d --build
+docker compose --env-file .env.prod -f docker-compose.prod.yml up -d --build
 
 # Stop
-docker compose -f docker-compose.prod.yml down
+docker compose --env-file .env.prod -f docker-compose.prod.yml down
 
 # Logs
-docker compose -f docker-compose.prod.yml logs -f
+docker compose --env-file .env.prod -f docker-compose.prod.yml logs -f
 
 # Run command
-docker compose -f docker-compose.prod.yml exec django python manage.py <command>
+docker compose --env-file .env.prod -f docker-compose.prod.yml exec django python manage.py <command>
 
 # Restart service
-docker compose -f docker-compose.prod.yml restart <service-name>
+docker compose --env-file .env.prod -f docker-compose.prod.yml restart <service-name>
 ```
 
 ---
