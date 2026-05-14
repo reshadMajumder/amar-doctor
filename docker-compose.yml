@@ -1,28 +1,143 @@
-# ⚠️  DEPRECATED - USE docker-compose.dev.yml or docker-compose.prod.yml INSTEAD
-#
-# This file is maintained for backwards compatibility only.
-# Please use:
-# - docker-compose.dev.yml for development (with hot reload)
-# - docker-compose.prod.yml for production (with SSL & optimization)
-#
-# See DEPLOYMENT.md for detailed instructions.
-
-version: '3.8'
-
-services:
+﻿services:
   db:
     image: postgres:17-alpine
-    container_name: amardoctor_db
+    restart: unless-stopped
+    shm_size: 128mb
+    env_file:
+      - ./core/.env
     environment:
-      POSTGRES_DB: ${DB_NAME:-amardoctor}
-      POSTGRES_USER: ${DB_USER:-postgres}
-      POSTGRES_PASSWORD: ${DB_PASSWORD:-postgres}
-    ports:
-      - "${DB_PORT:-5432}:5432"
+      POSTGRES_DB: ${DB_NAME}
+      POSTGRES_USER: ${DB_USER}
+      POSTGRES_PASSWORD: ${DB_PASSWORD}
     volumes:
       - postgres_data:/var/lib/postgresql/data
-    restart: always
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U $$DB_USER -d $$DB_NAME"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    networks:
+      - amardoctor_net
+
+  redis:
+    image: redis:7-alpine
+    restart: unless-stopped
+    command:
+      - redis-server
+      - --appendonly
+      - "yes"
+      - --save
+      - "60"
+      - "1"
+      - --save
+      - "300"
+      - "10"
+    volumes:
+      - redis_data:/data
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    networks:
+      - amardoctor_net
+
+  core:
+    build:
+      context: ./core
+      dockerfile: Dockerfile
+    restart: unless-stopped
+    env_file:
+      - ./core/.env
+    environment:
+      DEBUG: "False"
+      ALLOWED_HOSTS: amardoc.reshad.dev,localhost,127.0.0.1
+      CORS_ALLOWED_ORIGINS: https://amardoc.reshad.dev
+      CSRF_TRUSTED_ORIGINS: https://amardoc.reshad.dev
+      REDIS_URL: redis://redis:6379/1
+      DB_HOST: db
+      DB_PORT: "5432"
+      CONN_MAX_AGE: "60"
+      DJANGO_SETTINGS_MODULE: core.settings
+      GUNICORN_WORKERS: "3"
+      GUNICORN_TIMEOUT: "120"
+    depends_on:
+      db:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    expose:
+      - "8000"
+    networks:
+      - amardoctor_net
+
+  nginx:
+    image: nginx:1.27-alpine
+    restart: unless-stopped
+    depends_on:
+      core:
+        condition: service_started
+    ports:
+      - "80:80"
+      - "443:443"
+    volumes:
+      - ./nginx/nginx.conf:/etc/nginx/nginx.conf:ro
+      - ./ssl:/etc/nginx/ssl:ro
+    networks:
+      - amardoctor_net
+
+  celery_worker:
+    build:
+      context: ./core
+      dockerfile: Dockerfile
+    command: celery -A core worker -l info
+    restart: unless-stopped
+    env_file:
+      - ./core/.env
+    environment:
+      DEBUG: "False"
+      DJANGO_SETTINGS_MODULE: core.settings
+      CELERY_BROKER_URL: redis://redis:6379/0
+      CELERY_RESULT_BACKEND: redis://redis:6379/0
+      DB_HOST: db
+    depends_on:
+      db:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+      core:
+        condition: service_started
+    networks:
+      - amardoctor_net
+
+  celery_beat:
+    build:
+      context: ./core
+      dockerfile: Dockerfile
+    command: celery -A core beat -l info
+    restart: unless-stopped
+    env_file:
+      - ./core/.env
+    environment:
+      DEBUG: "False"
+      DJANGO_SETTINGS_MODULE: core.settings
+      CELERY_BROKER_URL: redis://redis:6379/0
+      CELERY_RESULT_BACKEND: redis://redis:6379/0
+      DB_HOST: db
+    depends_on:
+      db:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+      core:
+        condition: service_started
+    networks:
+      - amardoctor_net
 
 volumes:
+  redis_data:
   postgres_data:
 
+networks:
+  amardoctor_net:
+    driver: bridge

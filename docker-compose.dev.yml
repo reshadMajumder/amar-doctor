@@ -1,162 +1,97 @@
-services:
-  # PostgreSQL Database
+﻿services:
   db:
     image: postgres:17-alpine
-    container_name: amardoctor_db_dev
+    env_file:
+      - ./core/.env
     environment:
-      POSTGRES_DB: ${DB_NAME:-amardoctor}
-      POSTGRES_USER: ${DB_USER:-postgres}
-      POSTGRES_PASSWORD: ${DB_PASSWORD:-postgres}
-      POSTGRES_INITDB_ARGS: "--encoding=UTF8"
+      POSTGRES_DB: ${DB_NAME}
+      POSTGRES_USER: ${DB_USER}
+      POSTGRES_PASSWORD: ${DB_PASSWORD}
     ports:
-      - "${DB_PORT:-5432}:5432"
+      - "5432:5432"
     volumes:
-      - postgres_data_dev:/var/lib/postgresql/data
-    healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U ${DB_USER:-postgres}"]
-      interval: 10s
-      timeout: 5s
-      retries: 5
+      - postgres_data:/var/lib/postgresql/data
     networks:
-      - amardoctor_network
+      - amardoctor_net
 
-  # Redis Cache & Message Broker
-  redis:
-    image: redis:7-alpine
-    container_name: amardoctor_redis_dev
-    ports:
-      - "${REDIS_PORT:-6379}:6379"
-    healthcheck:
-      test: ["CMD", "redis-cli", "ping"]
-      interval: 10s
-      timeout: 5s
-      retries: 5
-    volumes:
-      - redis_data_dev:/data
-    networks:
-      - amardoctor_network
-
-  # Django ASGI Application
-  django:
+  core:
     build:
-      context: .
-      dockerfile: docker/dev/django/Dockerfile
-    container_name: amardoctor_django_dev
-    command: /entrypoint.sh
+      context: ./core
+      dockerfile: Dockerfile
+    env_file:
+      - ./core/.env
     environment:
       DEBUG: "True"
-      DJANGO_SETTINGS_MODULE: core.settings
+      ALLOWED_HOSTS: "*"
+      CORS_ALLOWED_ORIGINS: http://localhost,http://127.0.0.1,https://*.ngrok-free.app,https://*.ngrok.io
+      CSRF_TRUSTED_ORIGINS: http://localhost,http://127.0.0.1,https://*.ngrok-free.app,https://*.ngrok.io
+      REDIS_URL: redis://redis:6379/1
       DB_HOST: db
-      DB_PORT: 5432
-      DB_NAME: ${DB_NAME:-amardoctor}
-      DB_USER: ${DB_USER:-postgres}
-      DB_PASSWORD: ${DB_PASSWORD:-postgres}
-      REDIS_HOST: redis
-      REDIS_PORT: 6379
-      SECRET_KEY: ${SECRET_KEY:-django-insecure-dev-key-change-in-production}
-      ALLOWED_HOSTS: localhost,127.0.0.1,django,nginx
-      CORS_ALLOWED_ORIGINS: "http://localhost:3000,http://localhost:8000,http://localhost:8080"
-      EMAIL_HOST_USER: ${EMAIL_HOST_USER}
-      EMAIL_HOST_PASSWORD: ${EMAIL_HOST_PASSWORD}
-      GEMINI_API_KEY: ${GEMINI_API_KEY}
-      SSL_STORE_ID: ${SSL_STORE_ID}
-      SSL_STORE_PASSWORD: ${SSL_STORE_PASSWORD}
-      PUBLIC_DOMAIN: "http://localhost:8000"
+      DB_PORT: "5432"
+      CONN_MAX_AGE: "0"
     ports:
       - "8000:8000"
-    volumes:
-      - ./core:/app/core
-      - ./staticfiles:/app/staticfiles
-      - ./media:/app/media
-    depends_on:
-      db:
-        condition: service_healthy
-      redis:
-        condition: service_healthy
-    networks:
-      - amardoctor_network
-    stdin_open: true
-    tty: true
-
-  # Celery Worker
-  celery:
-    build:
-      context: .
-      dockerfile: docker/dev/django/Dockerfile
-    container_name: amardoctor_celery_dev
-    command: celery -A core worker -l info --concurrency=4
-    environment:
-      DEBUG: "True"
-      DJANGO_SETTINGS_MODULE: core.settings
-      DB_HOST: db
-      DB_PORT: 5432
-      DB_NAME: ${DB_NAME:-amardoctor}
-      DB_USER: ${DB_USER:-postgres}
-      DB_PASSWORD: ${DB_PASSWORD:-postgres}
-      REDIS_HOST: redis
-      REDIS_PORT: 6379
-      SECRET_KEY: ${SECRET_KEY:-django-insecure-dev-key-change-in-production}
-      GEMINI_API_KEY: ${GEMINI_API_KEY}
-    volumes:
-      - ./core:/app/core
     depends_on:
       - db
       - redis
-      - django
     networks:
-      - amardoctor_network
+      - amardoctor_net
 
-  # Celery Beat (Scheduler)
-  celery-beat:
+  redis:
+    image: redis:7-alpine
+    networks:
+      - amardoctor_net
+
+  celery_worker:
     build:
-      context: .
-      dockerfile: docker/dev/django/Dockerfile
-    container_name: amardoctor_celery_beat_dev
-    command: celery -A core beat -l info --scheduler django_celery_beat.schedulers:DatabaseScheduler
+      context: ./core
+      dockerfile: Dockerfile
+    command: celery -A core worker -l info
+    env_file:
+      - ./core/.env
     environment:
       DEBUG: "True"
-      DJANGO_SETTINGS_MODULE: core.settings
+      CELERY_BROKER_URL: redis://redis:6379/1
+      CELERY_RESULT_BACKEND: redis://redis:6379/1
       DB_HOST: db
-      DB_PORT: 5432
-      DB_NAME: ${DB_NAME:-amardoctor}
-      DB_USER: ${DB_USER:-postgres}
-      DB_PASSWORD: ${DB_PASSWORD:-postgres}
-      REDIS_HOST: redis
-      REDIS_PORT: 6379
-      SECRET_KEY: ${SECRET_KEY:-django-insecure-dev-key-change-in-production}
-    volumes:
-      - ./core:/app/core
     depends_on:
       - db
       - redis
-      - django
     networks:
-      - amardoctor_network
+      - amardoctor_net
 
-  # Nginx Reverse Proxy
+  celery_beat:
+    build:
+      context: ./core
+      dockerfile: Dockerfile
+    command: celery -A core beat -l info
+    env_file:
+      - ./core/.env
+    environment:
+      DEBUG: "True"
+      CELERY_BROKER_URL: redis://redis:6379/1
+      CELERY_RESULT_BACKEND: redis://redis:6379/1
+      DB_HOST: db
+    depends_on:
+      - db
+      - redis
+    networks:
+      - amardoctor_net
+
   nginx:
-    image: nginx:alpine
-    container_name: amardoctor_nginx_dev
+    image: nginx:1.27-alpine
+    volumes:
+      - ./nginx/nginx.dev.conf:/etc/nginx/nginx.conf:ro
     ports:
       - "80:80"
-    volumes:
-      - ./nginx/dev:/etc/nginx/conf.d:ro
-      - ./staticfiles:/app/staticfiles:ro
-      - ./media:/app/media:ro
     depends_on:
-      - django
+      - core
     networks:
-      - amardoctor_network
-    healthcheck:
-      test: ["CMD", "wget", "--quiet", "--tries=1", "--spider", "http://localhost/health/"]
-      interval: 10s
-      timeout: 5s
-      retries: 3
+      - amardoctor_net
 
 volumes:
-  postgres_data_dev:
-  redis_data_dev:
+  postgres_data:
 
 networks:
-  amardoctor_network:
+  amardoctor_net:
     driver: bridge
