@@ -6,7 +6,7 @@ This project is configured for production-ready deployment with:
 - **ASGI**: Uvicorn server with hot reload in dev, multi-worker in prod
 - **WebSockets**: Full support via Channels + Redis
 - **Containers**: Separate dev/prod Docker compose files
-- **Nginx**: Reverse proxy with SSL termination
+- **Nginx**: Reverse proxy with HTTP bootstrap, then SSL termination
 - **SSL**: Automated with Certbot and Let's Encrypt
 - **Database**: PostgreSQL 17 with persistence
 - **Task Queue**: Celery with Redis broker
@@ -141,8 +141,8 @@ DB_PORT=5432
 SECRET_KEY=<LONG_RANDOM_KEY>
 
 # Domain
-ALLOWED_HOSTS=amardoc.reshad.dev,www.amardoc.reshad.dev
-CORS_ALLOWED_ORIGINS=https://amardoc.reshad.dev,https://www.amardoc.reshad.dev
+ALLOWED_HOSTS=amardoc.reshad.dev
+CORS_ALLOWED_ORIGINS=https://amardoc.reshad.dev
 PUBLIC_DOMAIN=https://amardoc.reshad.dev
 
 # Email
@@ -155,28 +155,37 @@ SSL_STORE_ID=<your-store-id>
 SSL_STORE_PASSWORD=<your-store-password>
 ```
 
+### Production Bootstrap Order
+
+Use this order exactly:
+
+1. Start Nginx on port 80 only.
+2. Confirm HTTP works on `http://amardoc.reshad.dev`.
+3. Run Certbot to generate the first certificate.
+4. Add HTTPS back only after the certificate exists.
+5. Reload Nginx and verify HTTPS.
+
 ### Initial SSL Certificate
 
-Before deploying, you need an initial SSL certificate:
+Before enabling HTTPS, you need an initial SSL certificate:
 
 ```bash
-# Method 1: Generate standalone (before nginx starts)
+# Generate the first certificate after HTTP is reachable
 docker run -it --rm \
   -v /path/to/ssl/certbot/conf:/etc/letsencrypt \
   -v /path/to/ssl/www:/var/www/certbot \
   certbot/certbot certonly --standalone \
   -d amardoc.reshad.dev \
-  -d www.amardoc.reshad.dev \
   --agree-tos \
   --email your-email@example.com
 
-# Method 2: If you have existing certificates, copy them to ssl/certbot/conf/live/
+# After the certificate exists, switch Nginx to HTTPS-enabled config and reload it
 ```
 
 ### Start Production Services
 
 ```bash
-# Build and start (detached)
+# Build and start the HTTP bootstrap stack (detached)
 docker compose -f docker-compose.prod.yml up -d --build
 
 # Verify all services are running
@@ -189,17 +198,29 @@ docker compose -f docker-compose.prod.yml logs -f
 ### Verify Deployment
 
 ```bash
-# Check health
-curl https://amardoc.reshad.dev/health/
+# Check health over HTTP first
+curl http://amardoc.reshad.dev/health/
 
 # Check static files
-curl https://amardoc.reshad.dev/static/admin/css/base.css
+curl http://amardoc.reshad.dev/static/admin/css/base.css
 
 # Check Django API
-curl https://amardoc.reshad.dev/api/
+curl http://amardoc.reshad.dev/api/
 
 # Check WebSocket connectivity
-wscat -c wss://amardoc.reshad.dev/ws/your-consumer-path/
+wscat -c ws://amardoc.reshad.dev/ws/your-consumer-path/
+```
+
+### Enable HTTPS After Certificate Creation
+
+Once Certbot has created the certificate and placed it under `ssl/certbot/conf`, switch Nginx to the HTTPS-enabled config, then reload Nginx.
+
+```bash
+# Reload Nginx after enabling the HTTPS config
+docker compose -f docker-compose.prod.yml exec nginx nginx -s reload
+
+# Verify HTTPS after the certificate is present
+curl https://amardoc.reshad.dev/health/
 ```
 
 ### Database Migrations
@@ -214,7 +235,7 @@ docker compose -f docker-compose.prod.yml exec django python manage.py createsup
 
 ### SSL Certificate Renewal
 
-Certbot in production automatically renews certificates every 12 hours. Check renewal logs:
+Certbot in production automatically renews certificates every 12 hours after HTTPS is enabled. Check renewal logs:
 
 ```bash
 docker compose -f docker-compose.prod.yml logs certbot
@@ -226,6 +247,12 @@ To manually renew:
 docker compose -f docker-compose.prod.yml exec certbot certbot renew
 docker compose -f docker-compose.prod.yml exec nginx nginx -s reload
 ```
+
+### Nginx Bootstrap Notes
+
+- Keep the production Nginx config on port 80 only until the first certificate exists.
+- Do not add `www` redirects unless you actually serve that hostname.
+- The first successful health check should be `http://amardoc.reshad.dev/health/`.
 
 ### Persistent Data
 

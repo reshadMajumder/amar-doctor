@@ -164,7 +164,6 @@ services:
     restart: always
     ports:
       - "80:80"
-      - "443:443"
     volumes:
       - ./nginx/prod:/etc/nginx/conf.d:ro
       - ./staticfiles:/app/staticfiles:ro
