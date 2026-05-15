@@ -57,14 +57,7 @@ services:
     command: >
       bash -c "
       python manage.py migrate &&
-      gunicorn core.asgi:application \
-      -k uvicorn.workers.UvicornWorker \
-      --bind 0.0.0.0:8000 \
-      --workers 4 \
-      --worker-class uvicorn.workers.UvicornWorker \
-      --timeout 60 \
-      --access-logfile - \
-      --error-logfile -
+      daphne -b 0.0.0.0 -p 8000 --application-close-timeout 60 core.asgi:application
       "
     environment:
       - ENVIRONMENT=prod
