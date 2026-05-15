@@ -52,15 +52,22 @@ COPY --from=builder /usr/local/bin /usr/local/bin
 # Copy application code
 COPY . /app/
 
-# Create necessary directories and app user
+# Create app user first
+RUN useradd -m -u 1000 appuser
+
+# Create necessary directories with appuser ownership
 RUN mkdir -p /app/staticfiles /app/media && \
-    useradd -m -u 1000 appuser && \
     chown -R appuser:appuser /app
 
-# Collect static files (but only if DJANGO_SETTINGS_MODULE is set)
-RUN mkdir -p /app/staticfiles && \
-    chown -R appuser:appuser /app/staticfiles
+# Collect static files as root before switching to appuser
+# Set Django settings to use /app/staticfiles
+ENV DJANGO_SETTINGS_MODULE=core.settings \
+    STATIC_ROOT=/app/staticfiles \
+    STATIC_URL=/static/
 
+RUN python manage.py collectstatic --noinput --clear 2>&1 || true
+
+# Switch to non-root user
 USER appuser
 
 EXPOSE 8000
