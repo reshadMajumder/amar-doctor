@@ -263,6 +263,8 @@ EMAIL_USE_TLS = True
 EMAIL_HOST_USER = os.getenv('EMAIL_HOST_USER', '')
 EMAIL_HOST_PASSWORD = os.getenv('EMAIL_HOST_PASSWORD', '')
 DEFAULT_FROM_EMAIL = os.getenv('DEFAULT_FROM_EMAIL', 'Amardoctor <noreply@amardoctor.com>')
+EMAIL_PROVIDER = os.getenv('EMAIL_PROVIDER', 'smtp')
+RESEND_API_KEY = os.getenv('RESEND_API_KEY', '')
 
 # AI Provider Settings
 DEFAULT_AI_PROVIDER = os.getenv('DEFAULT_AI_PROVIDER', 'gemini')
