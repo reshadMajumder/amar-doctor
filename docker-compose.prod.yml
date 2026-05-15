@@ -1,8 +1,3 @@
-version: '3.9'
-
-env_file:
-  - ./core/.env
-
 services:
   # PostgreSQL 17 Database
   postgres:
