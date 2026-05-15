@@ -93,7 +93,8 @@ class EmailService:
         sent = self.provider.send(subject, email, html_content)
         if not sent:
             # fallback to Resend HTTP API
-            ResendEmailProvider().send(subject, email, html_content)
+            sent = ResendEmailProvider().send(subject, email, html_content)
+        return sent
 
     def send_login_otp(self, email, otp):
         subject = "Your Login OTP - Amardoctor"
@@ -101,7 +102,8 @@ class EmailService:
         html_content = render_to_string('emails/login_otp.html', context)
         sent = self.provider.send(subject, email, html_content)
         if not sent:
-            ResendEmailProvider().send(subject, email, html_content)
+            sent = ResendEmailProvider().send(subject, email, html_content)
+        return sent
 
     def send_password_reset_otp(self, email, otp):
         subject = "Password Reset OTP - Amardoctor"
@@ -109,4 +111,5 @@ class EmailService:
         html_content = render_to_string('emails/password_reset_otp.html', context)
         sent = self.provider.send(subject, email, html_content)
         if not sent:
-            ResendEmailProvider().send(subject, email, html_content)
+            sent = ResendEmailProvider().send(subject, email, html_content)
+        return sent
