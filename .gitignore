@@ -133,15 +133,25 @@ venv.bak/
 .env.prod.local
 !.env.prod.template
 
-# SSL Certificates
-ssl/certbot/conf/
-ssl/certbot/www/
-ssl/live/
-ssl/*.pem
+# SSL Certificates - NEVER commit to git
+ssl/*
+!ssl/.gitkeep
+*.pem
+*.key
+*.crt
+*.cer
 
 # Build outputs
 staticfiles/
 media/
+
+# Docker volumes
+postgres_data/
+postgres_data_dev/
+postgres_data_prod/
+redis_data/
+redis_data_dev/
+redis_data_prod/
 
 # Spyder project settings
 .spyderproject

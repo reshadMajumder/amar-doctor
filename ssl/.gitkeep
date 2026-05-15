@@ -1,0 +1,7 @@
+# SSL certificates directory
+# Place Cloudflare origin certificates here:
+# - cert.pem (origin certificate)
+# - key.pem (private key)
+#
+# NEVER commit certificate files to git
+# .gitignore already excludes .pem and .key files

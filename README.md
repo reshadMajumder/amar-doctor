@@ -1,571 +1,563 @@
-# Amar Doctor 🏥
+# AmarDoctor - Production Deployment Infrastructure
 
-A comprehensive AI-powered healthcare platform connecting patients with doctors for virtual consultations, medical guidance, and emergency triage. Built with WebSocket support for real-time communications.
+Production-ready Docker deployment for Django Channels-based AI-assisted telemedicine platform with PostgreSQL 17, Redis, Nginx, and Celery.
 
-> **⚠️ Important**: This project uses a production-ready Docker deployment architecture with WebSocket support. See [Deployment Guide](#-deployment) below for detailed setup instructions.
+## Architecture Overview
 
-## 🚀 Quick Start
+```
+┌──────────────────────────────────────────────────┐
+│         Cloudflare SSL (Full Strict)             │
+├──────────────────────────────────────────────────┤
+│    Nginx Reverse Proxy (WebSocket + Static)      │
+├──────────────────────────────────────────────────┤
+│  Django  │  Celery  │  Celery  │ PostgreSQL │    │
+│  ASGI    │  Worker  │   Beat   │ Database   │    │
+│  (4 WKR) │          │ Scheduler│            │    │
+├──────────────────────────────────────────────────┤
+│  Redis Cache & Channels Layer                    │
+└──────────────────────────────────────────────────┘
+```
+
+**Stack**:
+- Django 6.0 + Channels 4 (ASGI)
+- PostgreSQL 17
+- Redis 7
+- Celery with Beat Scheduler
+- Nginx with SSL/TLS
+- Gunicorn + Uvicorn Workers
+
+---
+
+## Quick Start - Development
 
 ### Prerequisites
-- Docker & Docker Compose installed and running
-- Git
-- `core/.env` file configured with database and Redis settings
+- Docker & Docker Compose
+- 8GB RAM minimum
+- Port 80, 443 available for Nginx
 
-### Development (with hot reload & WebSockets)
-```bash
-chmod +x deploy.sh      # Make script executable (if needed)
-./deploy.sh dev
-```
-Services run in foreground. Press `Ctrl+C` to stop.
+### 1. Setup Environment
 
-### Production (with SSL & WebSockets)
 ```bash
-./deploy.sh prod
-```
-Services run in background. Check status with `./deploy.sh status`.
-
-### All Available Commands
-```bash
-./deploy.sh dev       # Start development with auto-reload (foreground)
-./deploy.sh prod      # Start production (background)
-./deploy.sh logs      # View real-time logs from all services
-./deploy.sh status    # Check status of all services
-./deploy.sh restart   # Restart all running services
-./deploy.sh stop      # Stop all services
-./deploy.sh down      # Stop and remove containers
-./deploy.sh build     # Build container images only
+cd amardoctor/
 ```
 
-### Direct Docker Compose Commands
-If you prefer to run docker compose directly:
-
-**Development:**
-```bash
-docker compose --env-file core/.env -f docker-compose.yml -f docker-compose.dev.yml up --build
-```
-
-**Production:**
-```bash
-docker compose --env-file core/.env up -d --build
-```
-
-**View Logs:**
-```bash
-docker compose --env-file core/.env logs -f
-```
-
-## � Deployment Guide
-
-### Architecture Overview
-This project is a backend-only API with:
-- **API Backend**: Django ASGI application with WebSocket support via Daphne
-- **Database**: PostgreSQL with persistent volumes
-- **Cache**: Redis for session/cache management and Celery broker
-- **Task Queue**: Celery worker + Beat scheduler for async tasks
-- **Real-time Communication**: Django Channels with WebSocket support
-- **Reverse Proxy**: Nginx for SSL termination and routing
-
-### Environment Setup
-
-1. **Clone the repository**
-   ```bash
-   git clone https://github.com/yourusername/amar-doctor.git
-   cd amar-doctor
-   ```
-
-2. **Create and configure environment file**
-   ```bash
-   # The .env file should be in the core/ directory
-   cat > core/.env << EOF
-   # Database Configuration
-   DB_NAME=amardoctor
-   DB_USER=postgres
-   DB_PASSWORD=your_secure_password_here
-   DB_HOST=db
-   DB_PORT=5432
-   
-   # Django Configuration
-   SECRET_KEY=your_django_secret_key_here
-   DEBUG=False
-   ALLOWED_HOSTS=amardoc.reshad.dev,localhost,127.0.0.1
-   
-   # CORS Configuration
-   CORS_ALLOWED_ORIGINS=https://amardoc.reshad.dev
-   CSRF_TRUSTED_ORIGINS=https://amardoc.reshad.dev
-   
-   # Redis Configuration
-   REDIS_URL=redis://redis:6379/1
-   REDIS_HOST=redis
-   REDIS_PORT=6379
-   
-   # Celery Configuration
-   CELERY_BROKER_URL=redis://redis:6379/0
-   CELERY_RESULT_BACKEND=redis://redis:6379/0
-   
-   # Environment
-   ENVIRONMENT=prod
-   EOF
-   ```
-
-3. **Update configuration for your setup**
-   - Replace `your_secure_password_here` with a strong database password
-   - Replace `your_django_secret_key_here` with Django secret key
-   - Update domain to match your deployment domain
-   - Adjust other settings as needed
-
-### Development Deployment
-
-**Local development with hot reload and WebSocket support:**
-
-Using the deployment script:
-```bash
-./deploy.sh dev
-```
-
-Or using docker compose directly:
-```bash
-docker compose --env-file core/.env -f docker-compose.yml -f docker-compose.dev.yml up --build
-```
-
-**Services will be available at:**
-- API: http://localhost:8000
-- WebSocket: ws://localhost:8000/ws/
-- Nginx proxy: http://localhost:80
-- PostgreSQL: localhost:5432
-- Redis: localhost:6379
-
-**What's included:**
-- PostgreSQL database with development settings
-- Redis cache and Celery broker
-- Celery worker & beat scheduler for tasks
-- Django development server with auto-reload
-- Daphne ASGI server with WebSocket support
-- Nginx reverse proxy
-- ngrok tunnel support for webhooks
-
-**First time setup - Run migrations:**
-```bash
-# In another terminal while dev is running:
-docker compose --env-file core/.env exec core python manage.py migrate
-docker compose --env-file core/.env exec core python manage.py createsuperuser
-```
-
-### Production Deployment
-
-**Deploy to production with SSL and optimizations:**
-
-1. **Set up SSL certificates (see [SSL/TLS Certificate Setup](#ssltls-certificate-setup) section)**
-
-2. **Update core/.env with production values:**
-   ```bash
-   # Update these in core/.env:
-   DEBUG=False
-   ENVIRONMENT=prod
-   ALLOWED_HOSTS=amardoc.reshad.dev,localhost,127.0.0.1
-   CORS_ALLOWED_ORIGINS=https://amardoc.reshad.dev
-   CSRF_TRUSTED_ORIGINS=https://amardoc.reshad.dev
-   SECRET_KEY=your_strong_secret_key
-   DB_PASSWORD=your_strong_db_password
-   ```
-
-3. **Deploy using the script:**
-   ```bash
-   ./deploy.sh prod
-   ```
-
-   Or using docker compose directly:
-   ```bash
-   docker compose --env-file core/.env up -d --build
-   ```
-
-4. **Check status:**
-   ```bash
-   ./deploy.sh status
-   # or
-   docker compose --env-file core/.env ps
-   ```
-
-5. **View logs:**
-   ```bash
-   ./deploy.sh logs
-   # or
-   docker compose --env-file core/.env logs -f
-   ```
-
-**First time setup - Run migrations:**
-```bash
-docker compose --env-file core/.env exec core python manage.py migrate
-docker compose --env-file core/.env exec core python manage.py createsuperuser
-```
-
-**What's included:**
-- Production-grade Gunicorn/Daphne server
-- Nginx with SSL/TLS termination
-- Health checks for all services
-- Automatic service restart on failure
-- Redis persistence with RDB and AOF
-- Connection pooling optimized for production
-- Secure WebSocket (WSS) support
-
-### SSL/TLS Certificate Setup
-
-The project is configured to use SSL certificates for HTTPS. Certificates should be placed in the `ssl/` directory:
+Create `core/.env`:
 
 ```bash
-# Create SSL directory if it doesn't exist
-mkdir -p ssl
+ENVIRONMENT=dev
+SECRET_KEY=dev-secret-key-change-in-production
+DEBUG=True
 
-# Copy your certificate and key
-# ssl/cert.pem    - Your SSL certificate
-# ssl/key.pem     - Your SSL private key
-```
-
-**For Let's Encrypt (recommended):**
-```bash
-# Stop any running services first
-./deploy.sh stop
-
-# Generate certificates using Certbot
-certbot certonly --standalone -d amardoc.reshad.dev
-
-# Copy to ssl directory (adjust paths based on your system)
-sudo cp /etc/letsencrypt/live/amardoc.reshad.dev/fullchain.pem ssl/cert.pem
-sudo cp /etc/letsencrypt/live/amardoc.reshad.dev/privkey.pem ssl/key.pem
-
-# Make sure permissions are correct
-sudo chmod 644 ssl/cert.pem ssl/key.pem
-
-# Start services again
-./deploy.sh prod
-```
-
-**Certificate renewal:**
-```bash
-# Certbot auto-renewal (set up in crontab):
-0 2 * * * certbot renew --quiet && cp /etc/letsencrypt/live/amardoc.reshad.dev/fullchain.pem /path/to/project/ssl/cert.pem && cp /etc/letsencrypt/live/amardoc.reshad.dev/privkey.pem /path/to/project/ssl/key.pem && docker compose -f /path/to/project/docker-compose.yml restart nginx
-```
-
-### Domain Configuration
-
-The project is configured to serve the API on your domain. Update your domain references in:
-- `docker-compose.yml` - ALLOWED_HOSTS, CORS_ALLOWED_ORIGINS, CSRF_TRUSTED_ORIGINS
-- `nginx/nginx.conf` - server_name directives
-
-**Production domain:**
-- `amardoc.reshad.dev` - API endpoint
-
-### Service URLs
-
-**Development:**
-- API: http://localhost:8000
-- WebSocket: ws://localhost:8000/ws/ (Django Channels)
-- Nginx proxy: http://localhost:80
-- PostgreSQL: localhost:5432
-- Redis: localhost:6379
-
-**Production:**
-- API: https://amardoc.reshad.dev
-- WebSocket: wss://amardoc.reshad.dev/ws/ (secure WebSocket)
-
-### Database Management
-
-**Before first deployment - Run migrations and create superuser:**
-```bash
-# Apply database migrations
-docker compose --env-file core/.env exec core python manage.py migrate
-
-# Create superuser account
-docker compose --env-file core/.env exec core python manage.py createsuperuser
-
-# Create additional admin
-docker compose --env-file core/.env exec core python manage.py createsuperuser
-```
-
-**Useful database commands:**
-```bash
-# Make migrations for changes
-docker compose --env-file core/.env exec core python manage.py makemigrations
-
-# Apply migrations
-docker compose --env-file core/.env exec core python manage.py migrate
-
-# Access Django shell
-docker compose --env-file core/.env exec core python manage.py shell
-
-# Backup database
-./scripts/db-backup.sh
-
-# Restore database
-./scripts/db-restore.sh
-
-# Delete all data and reset
-docker compose --env-file core/.env exec core python manage.py flush
-```
-
-### Celery Task Queue
-
-```bash
-# View Celery worker logs
-docker compose --env-file core/.env logs celery_worker -f
-
-# View Celery beat scheduler logs
-docker compose --env-file core/.env logs celery_beat -f
-
-# Monitor Celery tasks
-docker compose --env-file core/.env exec celery_worker celery -A core inspect active
-
-# View registered tasks
-docker compose --env-file core/.env exec celery_worker celery -A core inspect registered
-
-# Purge all tasks from queue
-docker compose --env-file core/.env exec celery_worker celery -A core purge
-```
-
-### Monitoring & Maintenance
-
-**View logs:**
-```bash
-# All services
-./deploy.sh logs
-
-# Specific service
-docker compose --env-file core/.env logs core -f          # Django API
-docker compose --env-file core/.env logs celery_worker -f # Background tasks
-docker compose --env-file core/.env logs celery_beat -f   # Scheduled tasks
-docker compose --env-file core/.env logs redis -f         # Cache/broker
-docker compose --env-file core/.env logs db -f            # Database
-docker compose --env-file core/.env logs nginx -f         # Reverse proxy
-```
-
-**Service management:**
-```bash
-# Check service status
-./deploy.sh status
-# or
-docker compose --env-file core/.env ps
-
-# Validate Nginx configuration
-docker compose --env-file core/.env exec nginx nginx -t
-
-# Restart services
-./deploy.sh restart
-
-# Restart specific service
-docker compose --env-file core/.env restart core
-
-# Stop services
-./deploy.sh stop
-
-# Shut down and remove containers
-./deploy.sh down
-```
-
-**Health checks:**
-```bash
-# Check service health
-docker compose --env-file core/.env ps
-
-# Services marked as "healthy" are running properly
-# Check logs if any service shows "unhealthy"
-```
-
-### Scaling Considerations
-
-**For production, consider:**
-
-1. **Database**: Use managed PostgreSQL service (AWS RDS, DigitalOcean)
-2. **Redis**: Use managed Redis service (AWS ElastiCache, DigitalOcean)
-3. **Celery**: Scale workers by running multiple containers or using dedicated task workers
-4. **Static Files**: Use CDN (CloudFront, Cloudflare) for static assets
-5. **Load Balancing**: Use load balancer in front of Nginx for HA and scaling
-6. **WebSocket Scaling**: Use Redis as message broker for multiple Celery workers
-
-### Troubleshooting
-
-**"core/.env file not found" error:**
-```bash
-# Create the .env file in core directory
-cat > core/.env << EOF
+# Database
 DB_NAME=amardoctor
 DB_USER=postgres
-DB_PASSWORD=your_password
-# ... (add other variables from the Environment Setup section)
-EOF
+DB_PASSWORD=postgres
+DB_HOST=postgres
+DB_PORT=5432
+
+# Redis
+REDIS_HOST=redis
+REDIS_PORT=6379
+REDIS_CACHE_DB=1
+REDIS_CELERY_DB=0
+
+# Email & APIs
+GEMINI_API_KEY=your-api-key
+EMAIL_HOST_USER=your-email@gmail.com
+EMAIL_HOST_PASSWORD=your-app-password
+DEFAULT_FROM_EMAIL=noreply@amardoctor.com
+
+# Payments
+SSL_STORE_ID=your-store-id
+SSL_STORE_PASSWORD=your-password
+
+# Domain
+PUBLIC_DOMAIN=http://localhost:8000
 ```
 
-**Services fail to start:**
+### 2. Start Services
+
 ```bash
-# Check logs for errors
-./deploy.sh logs
+# Main services (app, postgres, redis, nginx)
+docker compose -f docker-compose.dev.yml up --build
 
-# Verify .env file exists and has correct format
-cat core/.env
-
-# Make sure ports are not in use
-lsof -i :8000  # API port
-lsof -i :5432  # Database port
-lsof -i :6379  # Redis port
-lsof -i :80    # Nginx HTTP
-lsof -i :443   # Nginx HTTPS
+# In another terminal, start workers
+docker compose -f docker-compose.dev.yml --profile worker up -d
 ```
 
-**WebSocket connection failures:**
-- Ensure proxies support WebSocket upgrade headers
-- Check CORS and CSRF settings match client domain
-- Verify nginx configuration has Upgrade headers: `docker compose --env-file core/.env exec nginx nginx -t`
-- Check Django Channels routing in `core/asgi.py`
-- Review nginx logs: `docker compose --env-file core/.env logs nginx`
+### 3. Access Application
 
-**Celery tasks not running:**
-- Verify Redis is running: `docker compose --env-file core/.env logs redis`
-- Check celery worker logs: `docker compose --env-file core/.env logs celery_worker`
-- Ensure tasks are registered in the app
-- Verify Redis connection: `docker compose --env-file core/.env exec redis redis-cli ping`
+- **API**: http://localhost
+- **Admin**: http://localhost/admin
+- **WebSocket**: ws://localhost/ws/
 
-**Database connection errors:**
-- Check PostgreSQL health: `docker compose --env-file core/.env ps db`
-- Review DB logs: `docker compose --env-file core/.env logs db`
-- Verify credentials in `core/.env`
-- Check network connectivity: `docker compose --env-file core/.env exec core ping db`
+### 4. Initialize Database
 
-**Permission issues:**
 ```bash
-# Check volume mount permissions
-ls -la ssl/
-ls -la core/.env
-
-# Fix permissions if needed
-chmod 644 core/.env
-chmod 755 ssl/
-chmod 644 ssl/cert.pem ssl/key.pem
-```
-
-**Container disk space:**
-```bash
-# Clean up unused images and containers
-docker system prune -a --volumes
-
-# Remove specific container
-docker compose --env-file core/.env down
-
-# Rebuild everything
-./deploy.sh build
+docker compose -f docker-compose.dev.yml exec app python manage.py migrate
+docker compose -f docker-compose.dev.yml exec app python manage.py createsuperuser
 ```
 
 ---
 
-## �🚀 Features
-
-### 👨‍⚕️ For Doctors
-
-- **AI Triage Assistant** - Automatically triage incoming patient messages using Gemini AI
-- **Smart Response Generation** - Get AI-suggested responses to patient queries
-- **Patient History** - View complete conversation history for each patient
-- **Professional Dashboard** - Track patient interactions and manage consultations
-
-### 👨‍⚕️ For Patients
-
-- **AI Health Assistant** - Get instant medical guidance and triage
-- **Doctor Consultation** - Chat with qualified doctors for expert advice
-- **Health Monitoring** - Track symptoms and treatment progress
-- **Emergency Support** - Get prioritized assistance during critical situations
-
-## ⚙️ Tech Stack
-
-### Backend
-- **Framework**: Django 6.0 with ASGI (Uvicorn)
-- **Database**: PostgreSQL 17
-- **AI**: Google Gemini API
-- **Real-time**: Django Channels & WebSockets
-- **Caching**: Redis
-- **Authentication**: JWT (JSON Web Tokens)
-- **Task Queue**: Celery with Beat scheduler
-- **Web Server**: Nginx with SSL/TLS
-
-### Frontend
-- **Framework**: React
-- **Styling**: Tailwind CSS
-- **State Management**: Zustand
-- **Notifications**: WebSockets
-
-### Infrastructure
-- **Containerization**: Docker & Docker Compose (dev/prod)
-- **Web Server**: Nginx reverse proxy
-- **ASGI Server**: Uvicorn
-- **SSL**: Certbot + Let's Encrypt
-
-## 📦 Installation
+## Production Deployment
 
 ### Prerequisites
-- Docker
-- Docker Compose
-- Git
+- Docker & Docker Compose on production server
+- Cloudflare SSL Origin Certificate
+- Strong database password
+- Django SECRET_KEY (generate: `python -c "import secrets; print(secrets.token_urlsafe(50))"`)
 
-### Quick Start
+### 1. Prepare SSL Certificates
 
-1. **Clone the repository**
-   ```bash
-   git clone https://github.com/reshadMajumder/amar-doctor.git
-   cd amar-doctor
-   ```
+#### Get Cloudflare Origin Certificate
 
-2. **Start the services**
-   ```bash
-   docker compose up -d
-   ```
+1. Cloudflare Dashboard → SSL/TLS → Origin Server
+2. Create Origin Certificate
+3. Download certificate and private key
+4. Place in `ssl/` directory:
 
-3. **Apply migrations**
-   ```bash
-   docker compose exec web python manage.py migrate
-   ```
+```bash
+mkdir -p ssl/
+# cert.pem - origin certificate
+# key.pem  - private key
+```
 
-4. **Create superuser**
-   ```bash
-   docker compose exec web python manage.py createsuperuser
-   ```
+**⚠️ CRITICAL**: Never commit SSL files. Already in `.gitignore`.
 
-5. **Access the application**
-   - Frontend: [http://localhost:3000](http://localhost:3000)
-   - Django Admin: [http://localhost:8000/admin](http://localhost:8000/admin)
+### 2. Create Production Environment
 
-## 📁 Project Structure
+Create `core/.env`:
+
+```bash
+ENVIRONMENT=prod
+SECRET_KEY=<generate-strong-key>
+DEBUG=False
+
+# Database
+DB_NAME=amardoctor_prod
+DB_USER=amardoctor
+DB_PASSWORD=<strong-password>
+DB_HOST=postgres
+DB_PORT=5432
+
+# Redis
+REDIS_HOST=redis
+REDIS_PORT=6379
+REDIS_CACHE_DB=1
+REDIS_CELERY_DB=0
+
+# Security
+ALLOWED_HOSTS=amardoc.reshad.dev
+CSRF_TRUSTED_ORIGINS=https://amardoc.reshad.dev
+CORS_ALLOWED_ORIGINS=https://amardoc.reshad.dev
+
+# Services
+GEMINI_API_KEY=<your-key>
+EMAIL_HOST_USER=<prod-email>
+EMAIL_HOST_PASSWORD=<app-password>
+DEFAULT_FROM_EMAIL=noreply@amardoctor.com
+SSL_STORE_ID=<store-id>
+SSL_STORE_PASSWORD=<store-password>
+
+# Domain
+PUBLIC_DOMAIN=https://amardoc.reshad.dev
+```
+
+### 3. Deploy
+
+```bash
+# Start all services in background
+docker compose -f docker-compose.prod.yml up --build -d
+
+# Verify health
+docker compose -f docker-compose.prod.yml ps
+```
+
+Expected status: All services **Up** and **healthy**
+
+### 4. Post-Deployment Setup
+
+```bash
+# Run migrations
+docker compose -f docker-compose.prod.yml exec app python manage.py migrate
+
+# Create superuser
+docker compose -f docker-compose.prod.yml exec app python manage.py createsuperuser
+
+# Collect static files (auto-runs but can run manually)
+docker compose -f docker-compose.prod.yml exec app python manage.py collectstatic --noinput
+```
+
+### 5. Configure Cloudflare
+
+1. **SSL/TLS Mode**: Full (Strict)
+2. **DNS**: Point A record to server IP
+3. **Edge Certificates**: Auto-renew enabled
+
+### 6. Verify Production
+
+```bash
+# Check all services
+docker compose -f docker-compose.prod.yml ps
+
+# Tail logs
+docker compose -f docker-compose.prod.yml logs -f
+
+# Test endpoints
+curl https://amardoc.reshad.dev/health/
+```
+
+---
+
+## Project Structure
 
 ```
 amardoctor/
-├── core/                 # Django project root
-│   ├── accounts/         # User authentication and profiles
-│   ├── triage/           # AI triage and consultation logic
-│   ├── chat/             # Real-time messaging
-│   └── api/              # API endpoints
-├── frontend/             # React frontend
-├── docker/               # Docker configurations
-└── nginx/                # Nginx configurations
+├── core/                       # Django Project
+│   ├── core/
+│   │   ├── settings.py        # Django config
+│   │   ├── asgi.py            # ASGI with Channels
+│   │   ├── celery.py
+│   │   ├── urls.py
+│   │   └── wsgi.py
+│   ├── accounts/              # Authentication
+│   ├── appointments/          # Appointments
+│   ├── chat/                  # Real-time chat
+│   ├── triage/                # AI Triage
+│   ├── notifications/         # Notifications
+│   ├── payments/              # Payment Processing
+│   ├── Dockerfile
+│   ├── requirements.txt
+│   ├── manage.py
+│   └── .env                   # Config (git-ignored)
+│
+├── nginx/
+│   ├── dev/nginx.conf         # Development config
+│   └── prod/nginx.conf        # Production config
+│
+├── ssl/
+│   ├── cert.pem               # SSL certificate (git-ignored)
+│   └── key.pem                # SSL key (git-ignored)
+│
+├── docker-compose.dev.yml     # Development
+├── docker-compose.prod.yml    # Production
+├── .dockerignore
+├── .gitignore
+└── README.md
 ```
 
-## 🧪 Testing
+---
 
-Run tests using pytest:
+## Service Management
+
+### Development
+
 ```bash
-docker compose exec web pytest
+# Start all (app, postgres, redis, nginx)
+docker compose -f docker-compose.dev.yml up --build
+
+# Start workers separately
+docker compose -f docker-compose.dev.yml --profile worker up -d
+
+# Stop all
+docker compose -f docker-compose.dev.yml down
+
+# Remove volumes (⚠️ deletes data)
+docker compose -f docker-compose.dev.yml down -v
 ```
 
-## 📂 Environment Variables
+### Production
 
-Create a `.env` file based on `.env.example`:
-```env
-DB_NAME=amardoctor
-DB_USER=postgres
+```bash
+# Deploy
+docker compose -f docker-compose.prod.yml up --build -d
+
+# Status
+docker compose -f docker-compose.prod.yml ps
+
+# Logs
+docker compose -f docker-compose.prod.yml logs -f
+
+# Restart service
+docker compose -f docker-compose.prod.yml restart app
+
+# Stop all (keeps data)
+docker compose -f docker-compose.prod.yml down
+```
+
+---
+
+## Celery Tasks
+
+### Monitor
+
+```bash
+# View active tasks
+docker compose -f docker-compose.dev.yml exec celery celery -A core inspect active
+
+# Watch real-time
+docker compose -f docker-compose.dev.yml exec celery celery -A core events
+
+# List scheduled tasks
+docker compose -f docker-compose.dev.yml exec celery-beat celery -A core inspect scheduled
+```
+
+---
+
+## WebSocket Support
+
+The infrastructure is fully WebSocket-compatible:
+
+- **CRITICAL Nginx Headers** (already configured):
+  ```
+  Upgrade: websocket
+  Connection: upgrade
+  ```
+
+- **Django Channels Configuration** (in `core/asgi.py`):
+  - JWT authentication middleware
+  - Redis channel layer
+  - Multiple routing URL patterns
+
+- **Access**:
+  - Development: `ws://localhost/ws/`
+  - Production: `wss://amardoc.reshad.dev/ws/`
+
+---
+
+## Database Backups
+
+### Create Backup
+
+```bash
+docker compose -f docker-compose.prod.yml exec postgres pg_dump \
+  -U amardoctor -d amardoctor_prod > backup.sql
+```
+
+### Restore from Backup
+
+```bash
+docker compose -f docker-compose.prod.yml exec -T postgres psql \
+  -U amardoctor -d amardoctor_prod < backup.sql
+```
+
+---
+
+## Troubleshooting
+
+### WebSocket Not Working
+
+```bash
+# Check Nginx headers
+docker compose logs nginx
+
+# Verify Channels config
+cat core/core/asgi.py
+
+# Test endpoint
+curl -i -N -H "Connection: Upgrade" -H "Upgrade: websocket" \
+  https://amardoc.reshad.dev/ws/
+```
+
+### Database Connection Error
+
+```bash
+# Check PostgreSQL
+docker compose -f docker-compose.dev.yml ps postgres
+docker compose -f docker-compose.dev.yml logs postgres
+
+# Reset (dev only)
+docker compose -f docker-compose.dev.yml down -v
+docker compose -f docker-compose.dev.yml up --build
+```
+
+### Static Files Missing
+
+```bash
+# Collect manually
+docker compose -f docker-compose.dev.yml exec app \
+  python manage.py collectstatic --noinput
+
+# Verify mount
+docker compose -f docker-compose.dev.yml exec nginx \
+  ls -la /app/staticfiles/
+```
+
+### Celery Not Processing
+
+```bash
+# Check Redis
+docker compose -f docker-compose.dev.yml ps redis
+docker compose -f docker-compose.dev.yml logs redis
+
+# Check worker
+docker compose -f docker-compose.dev.yml --profile worker logs celery
+
+# Inspect tasks
+docker compose -f docker-compose.dev.yml exec celery \
+  celery -A core inspect active
+```
+
+---
+
+## Performance Tuning
+
+### Nginx
+- Gzip compression enabled
+- HTTP/2 support
+- Connection pooling
+- Asset caching (365 days for `/static/`)
+- Rate limiting (API: 30 req/s, WebSocket: 100 req/s)
+
+### Django
+- 4 Gunicorn workers (production)
+- Uvicorn async workers
+- Redis caching layer
+- Connection pooling
+
+### Database
+- Named persistent volumes
+- Health checks
+- Connection limits
+
+### Docker
+- Multi-stage builds (optimize layer caching)
+- Alpine-based images (slim)
+- Non-root user execution
+
+---
+
+## Scaling for Production
+
+1. **Multiple App Instances**: Add more `app` services in `docker-compose.prod.yml`
+2. **Load Balancing**: Nginx already configured with `upstream` blocks
+3. **Database**: Migrate to managed PostgreSQL (AWS RDS, DigitalOcean)
+4. **Redis**: Use managed Redis (AWS ElastiCache, DigitalOcean)
+5. **Static Files**: Use CDN (Cloudflare, CloudFront, S3)
+6. **Celery Workers**: Run on separate machines with shared Redis broker
+
+---
+
+## Environment Variables
+
+### Required (Development)
+```
+DEBUG=True
+SECRET_KEY=<dev-key>
 DB_PASSWORD=postgres
-DB_HOST=db
-DB_PORT=5432
 ```
 
-## 🤝 Contributing
+### Required (Production)
+```
+DEBUG=False
+SECRET_KEY=<strong-key>
+DB_PASSWORD=<strong-password>
+ALLOWED_HOSTS=amardoc.reshad.dev
+CSRF_TRUSTED_ORIGINS=https://amardoc.reshad.dev
+```
 
-1. Create a feature branch
-2. Make your changes
-3. Submit a pull request
+### Optional
+```
+GEMINI_API_KEY
+EMAIL_HOST_USER
+EMAIL_HOST_PASSWORD
+SSL_STORE_ID
+SSL_STORE_PASSWORD
+```
 
-## 📝 License
+---
 
-MIT License
+## Security Features
+
+### Nginx
+- SSL/TLS termination
+- HSTS headers
+- Security headers (XSS, CSP, etc.)
+- Rate limiting
+- Hidden `.files`
+
+### Django
+- Secure cookies
+- CSRF protection
+- CORS whitelist
+- Allowed hosts validation
+- SQL injection prevention (ORM)
+
+### Database
+- Persistent volumes
+- Health checks
+- Strong passwords required
+- No default credentials
+
+---
+
+## Health Checks
+
+All services have health checks enabled:
+
+```bash
+# View status
+docker compose -f docker-compose.prod.yml ps
+
+# Expected: "Up" and "healthy"
+```
+
+### Endpoints
+- Django: GET `/health/`
+- PostgreSQL: `pg_isready`
+- Redis: `redis-cli ping`
+
+---
+
+## Logs
+
+### View All Logs
+```bash
+docker compose -f docker-compose.dev.yml logs -f
+```
+
+### View Specific Service
+```bash
+docker compose -f docker-compose.dev.yml logs -f app
+docker compose -f docker-compose.dev.yml logs -f celery
+docker compose -f docker-compose.dev.yml logs -f postgres
+```
+
+---
+
+## Updates & Dependencies
+
+### Update Python Packages
+```bash
+pip install -r core/requirements.txt -U
+pip freeze > core/requirements.txt
+docker compose -f docker-compose.dev.yml up --build
+```
+
+---
+
+## Notes
+
+- **SSL**: Place Cloudflare certificates in `ssl/` folder
+- **Environment**: Use `.env` file (git-ignored) for secrets
+- **WebSocket**: CRITICAL nginx headers already configured
+- **Static Files**: Auto-collected on startup
+- **Health**: All services have checks enabled
+- **Restart**: Always `restart: always` in production
+- **Volumes**: Named volumes for data persistence
+
+---
+
+## Support
+
+For issues:
+1. Check logs: `docker compose logs [service]`
+2. Verify health: `docker compose ps`
+3. Check `.env` configuration
+4. Test connectivity between services
+
+---
+
+**Last Updated**: May 2026  
+**Version**: 1.0.0 (Production Ready)

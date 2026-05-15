@@ -1,0 +1,119 @@
+# Git
+.git
+.gitignore
+.gitattributes
+
+# Python
+__pycache__
+*.py[cod]
+*$py.class
+*.so
+.Python
+env/
+venv/
+ENV/
+build/
+develop-eggs/
+dist/
+downloads/
+eggs/
+.eggs/
+lib/
+lib64/
+parts/
+sdist/
+var/
+wheels/
+*.egg-info/
+.installed.cfg
+*.egg
+.pytest_cache/
+.coverage
+htmlcov/
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+.DS_Store
+.project
+.pydevproject
+.settings/
+*.sublime-project
+*.sublime-workspace
+
+# Database
+db.sqlite3
+*.sqlite
+*.sqlite3
+*.db
+
+# Environment
+.env
+.env.local
+.env.*.local
+.env.*.dev
+.env.dev
+.env.test
+
+# Media and Static (will be mounted as volumes)
+/staticfiles/
+/media/
+/static/
+
+# Docker
+Dockerfile
+.dockerignore
+docker-compose*.yml
+docker-compose*.yaml
+
+# CI/CD
+.github/
+.gitlab-ci.yml
+.travis.yml
+Jenkinsfile
+
+# Documentation
+README.md
+docs/
+*.md
+
+# Logs
+logs/
+*.log
+npm-debug.log
+
+# Node (if using frontend tools)
+node_modules/
+npm-debug.log
+yarn-error.log
+.npm/
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Temporary
+tmp/
+temp/
+*.tmp
+
+# Redis
+dump.rdb
+appendonly.aof
+
+# Certificates (handled separately)
+ssl/
+*.pem
+*.key
+*.crt
+
+# Editor
+.editorconfig
+
+# Misc
+.auth
+.venv
+pip-log.txt
