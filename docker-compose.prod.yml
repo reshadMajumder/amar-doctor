@@ -70,26 +70,26 @@ services:
     environment:
       - ENVIRONMENT=prod
       - DEBUG=False
-      - DB_NAME=${DB_NAME}
-      - DB_USER=${DB_USER}
-      - DB_PASSWORD=${DB_PASSWORD}
+      - DB_NAME=${DB_NAME:-amardoctor_prod}
+      - DB_USER=${DB_USER:-amardoctor}
+      - DB_PASSWORD=${DB_PASSWORD:-postgres}
       - DB_HOST=postgres
       - DB_PORT=5432
       - REDIS_HOST=redis
       - REDIS_PORT=6379
-      - REDIS_CACHE_DB=${REDIS_CACHE_DB}
-      - REDIS_CELERY_DB=${REDIS_CELERY_DB}
-      - SECRET_KEY=${SECRET_KEY}
-      - ALLOWED_HOSTS=${ALLOWED_HOSTS}
-      - CSRF_TRUSTED_ORIGINS=${CSRF_TRUSTED_ORIGINS}
-      - CORS_ALLOWED_ORIGINS=${CORS_ALLOWED_ORIGINS}
-      - GEMINI_API_KEY=${GEMINI_API_KEY}
-      - EMAIL_HOST_USER=${EMAIL_HOST_USER}
-      - EMAIL_HOST_PASSWORD=${EMAIL_HOST_PASSWORD}
-      - DEFAULT_FROM_EMAIL=${DEFAULT_FROM_EMAIL}
-      - SSL_STORE_ID=${SSL_STORE_ID}
-      - SSL_STORE_PASSWORD=${SSL_STORE_PASSWORD}
-      - PUBLIC_DOMAIN=${PUBLIC_DOMAIN}
+      - REDIS_CACHE_DB=${REDIS_CACHE_DB:-1}
+      - REDIS_CELERY_DB=${REDIS_CELERY_DB:-0}
+      - SECRET_KEY=${SECRET_KEY:-change-me-in-production}
+      - ALLOWED_HOSTS=${ALLOWED_HOSTS:-localhost}
+      - CSRF_TRUSTED_ORIGINS=${CSRF_TRUSTED_ORIGINS:-https://localhost}
+      - CORS_ALLOWED_ORIGINS=${CORS_ALLOWED_ORIGINS:-https://localhost}
+      - GEMINI_API_KEY=${GEMINI_API_KEY:-}
+      - EMAIL_HOST_USER=${EMAIL_HOST_USER:-}
+      - EMAIL_HOST_PASSWORD=${EMAIL_HOST_PASSWORD:-}
+      - DEFAULT_FROM_EMAIL=${DEFAULT_FROM_EMAIL:-noreply@amardoctor.com}
+      - SSL_STORE_ID=${SSL_STORE_ID:-}
+      - SSL_STORE_PASSWORD=${SSL_STORE_PASSWORD:-}
+      - PUBLIC_DOMAIN=${PUBLIC_DOMAIN:-https://localhost}
     volumes:
       - ./core/staticfiles:/app/staticfiles
       - ./core/media:/app/media
@@ -119,20 +119,20 @@ services:
     environment:
       - ENVIRONMENT=prod
       - DEBUG=False
-      - DB_NAME=${DB_NAME}
-      - DB_USER=${DB_USER}
-      - DB_PASSWORD=${DB_PASSWORD}
+      - DB_NAME=${DB_NAME:-amardoctor_prod}
+      - DB_USER=${DB_USER:-amardoctor}
+      - DB_PASSWORD=${DB_PASSWORD:-postgres}
       - DB_HOST=postgres
       - DB_PORT=5432
       - REDIS_HOST=redis
       - REDIS_PORT=6379
-      - REDIS_CACHE_DB=${REDIS_CACHE_DB}
-      - REDIS_CELERY_DB=${REDIS_CELERY_DB}
-      - SECRET_KEY=${SECRET_KEY}
-      - GEMINI_API_KEY=${GEMINI_API_KEY}
-      - EMAIL_HOST_USER=${EMAIL_HOST_USER}
-      - EMAIL_HOST_PASSWORD=${EMAIL_HOST_PASSWORD}
-      - DEFAULT_FROM_EMAIL=${DEFAULT_FROM_EMAIL}
+      - REDIS_CACHE_DB=${REDIS_CACHE_DB:-1}
+      - REDIS_CELERY_DB=${REDIS_CELERY_DB:-0}
+      - SECRET_KEY=${SECRET_KEY:-change-me-in-production}
+      - GEMINI_API_KEY=${GEMINI_API_KEY:-}
+      - EMAIL_HOST_USER=${EMAIL_HOST_USER:-}
+      - EMAIL_HOST_PASSWORD=${EMAIL_HOST_PASSWORD:-}
+      - DEFAULT_FROM_EMAIL=${DEFAULT_FROM_EMAIL:-noreply@amardoctor.com}
     depends_on:
       postgres:
         condition: service_healthy
@@ -153,24 +153,24 @@ services:
       dockerfile: Dockerfile
     container_name: amardoctor_celery_beat_prod
     restart: always
-    command: celery -A core beat --loglevel=info --scheduler django_celery_beat.schedulers:DatabaseScheduler
+    command: celery -A core beat --loglevel=info
     environment:
       - ENVIRONMENT=prod
       - DEBUG=False
-      - DB_NAME=${DB_NAME}
-      - DB_USER=${DB_USER}
-      - DB_PASSWORD=${DB_PASSWORD}
+      - DB_NAME=${DB_NAME:-amardoctor_prod}
+      - DB_USER=${DB_USER:-amardoctor}
+      - DB_PASSWORD=${DB_PASSWORD:-postgres}
       - DB_HOST=postgres
       - DB_PORT=5432
       - REDIS_HOST=redis
       - REDIS_PORT=6379
-      - REDIS_CACHE_DB=${REDIS_CACHE_DB}
-      - REDIS_CELERY_DB=${REDIS_CELERY_DB}
-      - SECRET_KEY=${SECRET_KEY}
-      - GEMINI_API_KEY=${GEMINI_API_KEY}
-      - EMAIL_HOST_USER=${EMAIL_HOST_USER}
-      - EMAIL_HOST_PASSWORD=${EMAIL_HOST_PASSWORD}
-      - DEFAULT_FROM_EMAIL=${DEFAULT_FROM_EMAIL}
+      - REDIS_CACHE_DB=${REDIS_CACHE_DB:-1}
+      - REDIS_CELERY_DB=${REDIS_CELERY_DB:-0}
+      - SECRET_KEY=${SECRET_KEY:-change-me-in-production}
+      - GEMINI_API_KEY=${GEMINI_API_KEY:-}
+      - EMAIL_HOST_USER=${EMAIL_HOST_USER:-}
+      - EMAIL_HOST_PASSWORD=${EMAIL_HOST_PASSWORD:-}
+      - DEFAULT_FROM_EMAIL=${DEFAULT_FROM_EMAIL:-noreply@amardoctor.com}
     depends_on:
       postgres:
         condition: service_healthy
