@@ -2,14 +2,16 @@
 
 import { useEffect, useState } from "react";
 import { useRouter, useParams } from "next/navigation";
+import Link from "next/link";
 import { Navigation } from "@/components/layout/Navigation";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { api } from "@/lib/api";
+import { DOCTORS } from "@/lib/mock-data";
 import { 
   FileText, ArrowLeft, Clock, Activity, AlertTriangle, 
-  CheckCircle, Stethoscope, Share2, Download, Loader2 
+  CheckCircle, Stethoscope, Share2, Download, Loader2, Star 
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 
@@ -30,6 +32,75 @@ type DjangoReport = {
   patient: number;
 };
 
+type BackendDoctor = {
+  id: number;
+  user: {
+    id: number;
+    email: string;
+    full_name: string;
+    role: string;
+  };
+  specialization: string;
+  bmdc_number: string;
+  consultation_fee: string;
+  is_available: boolean;
+  verification_status: string;
+};
+
+function mapBackendDoctorToFrontend(backendDoc: BackendDoctor): any {
+  const mockMapping: Record<string, { rating: number; reviews: number; experience: string; languages: string[]; location: string; imageUrl: string }> = {
+    "cardiology": {
+      rating: 4.9,
+      reviews: 142,
+      experience: "15 Years",
+      languages: ["Bengali", "English"],
+      location: "Sylhet",
+      imageUrl: "https://picsum.photos/seed/doc3/400/400"
+    },
+    "pediatrics": {
+      rating: 4.8,
+      reviews: 96,
+      experience: "8 Years",
+      languages: ["Bengali", "English"],
+      location: "Chittagong",
+      imageUrl: "https://picsum.photos/seed/doc2/400/400"
+    },
+    "general physician": {
+      rating: 4.7,
+      reviews: 110,
+      experience: "12 Years",
+      languages: ["Bengali", "English"],
+      location: "Dhaka",
+      imageUrl: "https://picsum.photos/seed/doc1/400/400"
+    }
+  };
+
+  const key = backendDoc.specialization.toLowerCase();
+  const mockDetails = mockMapping[key] || {
+    rating: 4.6,
+    reviews: 45,
+    experience: "5 Years",
+    languages: ["Bengali"],
+    location: "Dhaka",
+    imageUrl: "https://picsum.photos/seed/docgeneric/400/400"
+  };
+
+  return {
+    id: String(backendDoc.user.id),
+    name: backendDoc.user.full_name.startsWith("Dr.") ? backendDoc.user.full_name : `Dr. ${backendDoc.user.full_name}`,
+    specialization: backendDoc.specialization,
+    experience: mockDetails.experience,
+    rating: mockDetails.rating,
+    reviews: mockDetails.reviews,
+    fee: `৳ ${parseFloat(backendDoc.consultation_fee).toFixed(0)}`,
+    availability: backendDoc.is_available ? "Available Today" : "Offline",
+    imageUrl: mockDetails.imageUrl,
+    languages: mockDetails.languages,
+    location: mockDetails.location,
+    bmdcNumber: backendDoc.bmdc_number
+  };
+}
+
 export default function ReportPage() {
   const params = useParams();
   const router = useRouter();
@@ -37,6 +108,7 @@ export default function ReportPage() {
 
   const [loading, setLoading] = useState(true);
   const [report, setReport] = useState<DjangoReport | null>(null);
+  const [suggestedDoctors, setSuggestedDoctors] = useState<any[]>([]);
 
   useEffect(() => {
     if (!reportId) return;
@@ -55,6 +127,42 @@ export default function ReportPage() {
 
     fetchReport();
   }, [reportId]);
+
+  // Fetch Recommended Specialists from the DB
+  useEffect(() => {
+    if (!report) return;
+    const recSpec = report.recommended_specialization || "General Physician";
+
+    async function fetchSpecialists() {
+      try {
+        const res = await api.get(`/api/v1/accounts/doctors/?specialization=${encodeURIComponent(recSpec)}`);
+        const list = res.data || res;
+        
+        if (Array.isArray(list) && list.length > 0) {
+          setSuggestedDoctors(list.map(mapBackendDoctorToFrontend));
+        } else {
+          // Fallback to mock filtering
+          const matching = DOCTORS.filter(doc => {
+            const docSpec = doc.specialization.toLowerCase();
+            const recommended = recSpec.toLowerCase();
+            return docSpec.includes(recommended) || recommended.includes(docSpec) || (recommended.includes("general") && docSpec.includes("general"));
+          });
+          setSuggestedDoctors(matching.length > 0 ? matching : DOCTORS.slice(0, 2));
+        }
+      } catch (err) {
+        console.error("Failed to fetch backend doctors", err);
+        // Fallback to mock filtering
+        const matching = DOCTORS.filter(doc => {
+          const docSpec = doc.specialization.toLowerCase();
+          const recommended = recSpec.toLowerCase();
+          return docSpec.includes(recommended) || recommended.includes(docSpec) || (recommended.includes("general") && docSpec.includes("general"));
+        });
+        setSuggestedDoctors(matching.length > 0 ? matching : DOCTORS.slice(0, 2));
+      }
+    }
+
+    fetchSpecialists();
+  }, [report]);
 
   if (loading) {
     return (
@@ -84,7 +192,9 @@ export default function ReportPage() {
     );
   }
 
-  // Adapter mapping Django REST payload to existing high-fidelity template props
+  const recommendedSpec = report.recommended_specialization || "General Physician";
+
+  // Adapter mapping Django REST payload to existing props
   const mappedReport = {
     emergencyWarning: report.risk_category === "emergency" || (report.emergency_flags && report.emergency_flags.length > 0),
     emergencyMessage: report.emergency_flags && report.emergency_flags.length > 0 
@@ -98,7 +208,7 @@ export default function ReportPage() {
     extractedSymptoms: report.extracted_symptoms || [],
     symptomsSummary: report.ai_summary ? (report.ai_summary.substring(0, 150) + "...") : "No symptoms summary available.",
     medicalSummary: report.ai_summary || "No detailed summary available.",
-    recommendation: `We recommend booking an appointment with a specialist in ${report.recommended_specialization || "General Medicine"}.`
+    recommendation: `We recommend booking a consultation with a specialist in ${recommendedSpec}.`
   };
 
   const riskColors: Record<string, string> = {
@@ -199,17 +309,52 @@ export default function ReportPage() {
           </CardContent>
         </Card>
 
-        <Card className="rounded-[2.2rem] border-primary/20 shadow-lg bg-primary/5 p-6 md:p-8">
-          <div className="flex flex-col md:flex-row items-center gap-6">
+        {/* Dynamic Specialist suggestion block */}
+        <Card className="rounded-[2.2rem] border-primary/20 shadow-lg bg-primary/5 p-6 md:p-8 space-y-6">
+          <div className="flex flex-col md:flex-row items-center gap-6 pb-6 border-b border-primary/10">
             <div className="w-14 h-14 rounded-2xl bg-primary flex items-center justify-center shrink-0 shadow-lg shadow-primary/10">
               <Stethoscope className="w-7 h-7 text-white" />
             </div>
             <div className="flex-1 text-center md:text-left space-y-1">
-              <h3 className="font-bold text-lg md:text-xl text-slate-900">Recommended Next Steps</h3>
-              <p className="text-xs md:text-sm text-slate-600 font-medium leading-relaxed pb-4">{mappedReport.recommendation}</p>
-              <Button size="lg" className="rounded-full px-10 h-12 text-sm font-bold shadow-lg shadow-primary/20" onClick={() => router.push('/doctors')}>
-                Book a Doctor Now
-              </Button>
+              <h3 className="font-bold text-base md:text-lg text-slate-900">AI Medical Routing Advice</h3>
+              <p className="text-xs md:text-sm text-slate-600 font-semibold leading-relaxed">{mappedReport.recommendation}</p>
+            </div>
+          </div>
+
+          <div className="space-y-4">
+            <h4 className="font-bold text-xs md:text-sm text-slate-800 flex items-center gap-2">
+              <CheckCircle className="w-4 h-4 text-primary shrink-0" />
+              Suggested {recommendedSpec} Specialists
+            </h4>
+            
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              {suggestedDoctors.map((doc) => (
+                <Card key={doc.id} className="rounded-2xl border border-slate-100 bg-white p-4 shadow-sm hover:shadow-md transition-all flex gap-3 relative overflow-hidden">
+                  <div className="absolute top-2.5 right-2.5 bg-accent/10 text-accent text-[9px] font-extrabold px-2 py-0.5 rounded-full flex items-center gap-0.5">
+                    <Star className="w-2.5 h-2.5 fill-accent stroke-accent" /> {doc.rating}
+                  </div>
+                  <div className="w-16 h-16 rounded-2xl overflow-hidden shrink-0 border border-slate-100 bg-slate-50">
+                    <img src={doc.imageUrl} alt={doc.name} className="w-full h-full object-cover" />
+                  </div>
+                  <div className="flex-1 space-y-1 min-w-0">
+                    <div className="flex items-center gap-1">
+                      <span className="font-bold text-xs md:text-sm text-slate-800 truncate">{doc.name}</span>
+                    </div>
+                    <p className="text-[9px] font-bold text-slate-400 uppercase tracking-widest">{doc.specialization}</p>
+                    <div className="flex items-center justify-between pt-1">
+                      <span className="text-[11px] font-extrabold text-primary">{doc.fee}</span>
+                      <div className="flex gap-1">
+                        <Link href={`/doctors/${doc.id}`}>
+                          <Button variant="ghost" size="sm" className="h-8 rounded-lg px-2.5 text-[10px] font-bold text-slate-500">Profile</Button>
+                        </Link>
+                        <Link href={`/consultation/new?doc=${doc.id}`}>
+                          <Button size="sm" className="h-8 rounded-lg px-3 text-[10px] font-bold shadow-sm shadow-primary/5">Book</Button>
+                        </Link>
+                      </div>
+                    </div>
+                  </div>
+                </Card>
+              ))}
             </div>
           </div>
         </Card>

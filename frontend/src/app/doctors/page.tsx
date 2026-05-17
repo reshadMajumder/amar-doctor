@@ -1,25 +1,143 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { Navigation } from "@/components/layout/Navigation";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
-import { Search, Filter, Star, Clock, MapPin, Languages, CheckCircle } from "lucide-react";
+import { api } from "@/lib/api";
+import { Search, Filter, Star, Clock, MapPin, Languages, CheckCircle, Loader2 } from "lucide-react";
 import { DOCTORS } from "@/lib/mock-data";
 import Link from "next/link";
 import { cn } from "@/lib/utils";
 
+type BackendDoctor = {
+  id: number;
+  user: {
+    id: number;
+    email: string;
+    full_name: string;
+    role: string;
+  };
+  specialization: string;
+  bmdc_number: string;
+  consultation_fee: string;
+  is_available: boolean;
+  verification_status: string;
+};
+
+function mapBackendDoctorToFrontend(backendDoc: BackendDoctor): any {
+  const mockMapping: Record<string, { rating: number; reviews: number; experience: string; languages: string[]; location: string; imageUrl: string }> = {
+    "cardiology": {
+      rating: 4.9,
+      reviews: 142,
+      experience: "15 Years",
+      languages: ["Bengali", "English"],
+      location: "Sylhet",
+      imageUrl: "https://picsum.photos/seed/doc3/400/400"
+    },
+    "pediatrics": {
+      rating: 4.8,
+      reviews: 96,
+      experience: "8 Years",
+      languages: ["Bengali", "English"],
+      location: "Chittagong",
+      imageUrl: "https://picsum.photos/seed/doc2/400/400"
+    },
+    "general physician": {
+      rating: 4.7,
+      reviews: 110,
+      experience: "12 Years",
+      languages: ["Bengali", "English"],
+      location: "Dhaka",
+      imageUrl: "https://picsum.photos/seed/doc1/400/400"
+    }
+  };
+
+  const key = backendDoc.specialization.toLowerCase();
+  const mockDetails = mockMapping[key] || {
+    rating: 4.6,
+    reviews: 45,
+    experience: "5 Years",
+    languages: ["Bengali"],
+    location: "Dhaka",
+    imageUrl: "https://picsum.photos/seed/docgeneric/400/400"
+  };
+
+  return {
+    id: String(backendDoc.user.id),
+    name: backendDoc.user.full_name.startsWith("Dr.") ? backendDoc.user.full_name : `Dr. ${backendDoc.user.full_name}`,
+    specialization: backendDoc.specialization,
+    experience: mockDetails.experience,
+    rating: mockDetails.rating,
+    reviews: mockDetails.reviews,
+    fee: `৳ ${parseFloat(backendDoc.consultation_fee).toFixed(0)}`,
+    availability: backendDoc.is_available ? "Available Today" : "Offline",
+    imageUrl: mockDetails.imageUrl,
+    languages: mockDetails.languages,
+    location: mockDetails.location,
+    bmdcNumber: backendDoc.bmdc_number
+  };
+}
+
 export default function DoctorsPage() {
   const [search, setSearch] = useState("");
   const [filter, setFilter] = useState("All");
+  const [doctors, setDoctors] = useState<any[]>([]);
+  const [loading, setLoading] = useState(true);
 
   const specializations = ["All", "General Physician", "Pediatrics", "Cardiology", "Gynecology"];
 
-  const filteredDoctors = DOCTORS.filter(doc => 
-    (filter === "All" || doc.specialization === filter) &&
-    (doc.name.toLowerCase().includes(search.toLowerCase()) || doc.specialization.toLowerCase().includes(search.toLowerCase()))
-  );
+  useEffect(() => {
+    async function fetchDoctors() {
+      try {
+        setLoading(true);
+        let url = `/api/v1/accounts/doctors/`;
+        const params = [];
+        
+        if (filter !== "All") {
+          params.push(`specialization=${encodeURIComponent(filter)}`);
+        }
+        if (search) {
+          params.push(`search=${encodeURIComponent(search)}`);
+        }
+        if (params.length > 0) {
+          url += `?${params.join("&")}`;
+        }
+
+        const res = await api.get(url);
+        const list = res.data || res;
+
+        if (Array.isArray(list) && list.length > 0) {
+          setDoctors(list.map(mapBackendDoctorToFrontend));
+        } else {
+          // Fallback to locally filtered mock DOCTORS
+          const fallback = DOCTORS.filter(doc => 
+            (filter === "All" || doc.specialization.toLowerCase().includes(filter.toLowerCase())) &&
+            (doc.name.toLowerCase().includes(search.toLowerCase()) || doc.specialization.toLowerCase().includes(search.toLowerCase()))
+          );
+          setDoctors(fallback);
+        }
+      } catch (err) {
+        console.error("Failed to fetch backend doctors", err);
+        // Fallback to mock DOCTORS
+        const fallback = DOCTORS.filter(doc => 
+          (filter === "All" || doc.specialization.toLowerCase().includes(filter.toLowerCase())) &&
+          (doc.name.toLowerCase().includes(search.toLowerCase()) || doc.specialization.toLowerCase().includes(search.toLowerCase()))
+        );
+        setDoctors(fallback);
+      } finally {
+        setLoading(false);
+      }
+    }
+
+    // 300ms Debounce to prevent flooding the backend DB on fast keystrokes
+    const handler = setTimeout(() => {
+      fetchDoctors();
+    }, 300);
+
+    return () => clearTimeout(handler);
+  }, [filter, search]);
 
   return (
     <div className="min-h-screen bg-[#f6f8fa]">
@@ -62,68 +180,76 @@ export default function DoctorsPage() {
           ))}
         </div>
 
-        {/* Doctor Cards */}
-        <div className="space-y-4 md:space-y-6">
-          {filteredDoctors.map((doc) => (
-            <Card key={doc.id} className="rounded-2xl md:rounded-[2rem] border-none shadow-md overflow-hidden bg-white hover:shadow-xl transition-all border border-transparent hover:border-primary/10">
-              <CardContent className="p-0">
-                <div className="flex flex-col md:flex-row">
-                  <div className="w-full md:w-48 h-40 md:h-auto relative shrink-0">
-                    <img src={doc.imageUrl} alt={doc.name} className="w-full h-full object-cover" />
-                    <div className="absolute top-3 left-3">
-                      <div className="bg-accent text-white border-none px-2 py-1 rounded-full flex items-center gap-1 shadow-lg text-[10px] font-bold">
-                        <Star className="w-3 h-3 fill-white" /> {doc.rating}
+        {/* Loading Spinner */}
+        {loading ? (
+          <div className="flex flex-col items-center justify-center py-20 space-y-4">
+            <Loader2 className="w-8 h-8 text-primary animate-spin" />
+            <p className="text-xs font-bold text-slate-400 uppercase tracking-widest">Querying active medical registries...</p>
+          </div>
+        ) : (
+          /* Doctor Cards */
+          <div className="space-y-4 md:space-y-6">
+            {doctors.map((doc) => (
+              <Card key={doc.id} className="rounded-2xl md:rounded-[2rem] border-none shadow-md overflow-hidden bg-white hover:shadow-xl transition-all border border-transparent hover:border-primary/10">
+                <CardContent className="p-0">
+                  <div className="flex flex-col md:flex-row">
+                    <div className="w-full md:w-48 h-40 md:h-auto relative shrink-0">
+                      <img src={doc.imageUrl} alt={doc.name} className="w-full h-full object-cover" />
+                      <div className="absolute top-3 left-3">
+                        <div className="bg-accent text-white border-none px-2 py-1 rounded-full flex items-center gap-1 shadow-lg text-[10px] font-bold">
+                          <Star className="w-3 h-3 fill-white" /> {doc.rating}
+                        </div>
                       </div>
                     </div>
-                  </div>
-                  <div className="flex-1 p-4 md:p-6 flex flex-col justify-between">
-                    <div>
-                      <div className="flex justify-between items-start mb-2">
-                        <div className="overflow-hidden">
-                          <div className="flex items-center gap-1.5 mb-0.5">
-                            <h3 className="text-base md:text-xl font-bold text-slate-900 truncate">{doc.name}</h3>
-                            <CheckCircle className="w-3 h-3 md:w-4 md:h-4 text-primary shrink-0" />
+                    <div className="flex-1 p-4 md:p-6 flex flex-col justify-between">
+                      <div>
+                        <div className="flex justify-between items-start mb-2">
+                          <div className="overflow-hidden">
+                            <div className="flex items-center gap-1.5 mb-0.5">
+                              <h3 className="text-base md:text-xl font-bold text-slate-900 truncate">{doc.name}</h3>
+                              <CheckCircle className="w-3 h-3 md:w-4 md:h-4 text-primary shrink-0" />
+                            </div>
+                            <p className="text-[10px] md:text-sm font-bold text-primary uppercase tracking-widest truncate">{doc.specialization}</p>
                           </div>
-                          <p className="text-[10px] md:text-sm font-bold text-primary uppercase tracking-widest truncate">{doc.specialization}</p>
+                          <div className="text-right shrink-0">
+                            <div className="text-base md:text-xl font-bold text-slate-900 leading-tight">{doc.fee}</div>
+                            <div className="text-[8px] md:text-[10px] font-bold text-slate-400 uppercase tracking-widest mt-1">Fee</div>
+                          </div>
                         </div>
-                        <div className="text-right shrink-0">
-                          <div className="text-base md:text-xl font-bold text-slate-900 leading-tight">{doc.fee}</div>
-                          <div className="text-[8px] md:text-[10px] font-bold text-slate-400 uppercase tracking-widest mt-1">Fee</div>
+                        
+                        <div className="grid grid-cols-2 gap-y-2 md:gap-y-3 gap-x-4 mt-3">
+                          <div className="flex items-center gap-2 text-slate-500 text-[10px] md:text-sm">
+                            <Clock className="w-3 h-3 md:w-4 md:h-4 text-slate-400 shrink-0" />
+                            <span className="truncate">{doc.experience}</span>
+                          </div>
+                          <div className="flex items-center gap-2 text-slate-500 text-[10px] md:text-sm">
+                            <MapPin className="w-3 h-3 md:w-4 md:h-4 text-slate-400 shrink-0" />
+                            <span className="truncate">{doc.location}</span>
+                          </div>
+                          <div className="flex items-center gap-2 text-slate-500 text-[10px] md:text-sm col-span-2">
+                            <Languages className="w-3 h-3 md:w-4 md:h-4 text-slate-400 shrink-0" />
+                            <span className="truncate">{doc.languages.join(", ")}</span>
+                          </div>
                         </div>
                       </div>
-                      
-                      <div className="grid grid-cols-2 gap-y-2 md:gap-y-3 gap-x-4 mt-3">
-                        <div className="flex items-center gap-2 text-slate-500 text-[10px] md:text-sm">
-                          <Clock className="w-3 h-3 md:w-4 md:h-4 text-slate-400 shrink-0" />
-                          <span className="truncate">{doc.experience}</span>
-                        </div>
-                        <div className="flex items-center gap-2 text-slate-500 text-[10px] md:text-sm">
-                          <MapPin className="w-3 h-3 md:w-4 md:h-4 text-slate-400 shrink-0" />
-                          <span className="truncate">{doc.location}</span>
-                        </div>
-                        <div className="flex items-center gap-2 text-slate-500 text-[10px] md:text-sm col-span-2">
-                          <Languages className="w-3 h-3 md:w-4 md:h-4 text-slate-400 shrink-0" />
-                          <span className="truncate">{doc.languages.join(", ")}</span>
-                        </div>
-                      </div>
-                    </div>
 
-                    <div className="mt-4 md:mt-6 flex gap-2">
-                      <Link href={`/doctors/${doc.id}`} className="flex-1">
-                        <Button variant="outline" className="w-full h-10 md:h-12 rounded-xl md:rounded-2xl font-bold text-xs md:text-sm">Profile</Button>
-                      </Link>
-                      <Link href={`/consultation/new?doc=${doc.id}`} className="flex-1">
-                        <Button className="w-full h-10 md:h-12 rounded-xl md:rounded-2xl font-bold text-xs md:text-sm shadow-lg shadow-primary/10">Book Now</Button>
-                      </Link>
+                      <div className="mt-4 md:mt-6 flex gap-2">
+                        <Link href={`/doctors/${doc.id}`} className="flex-1">
+                          <Button variant="outline" className="w-full h-10 md:h-12 rounded-xl md:rounded-2xl font-bold text-xs md:text-sm">Profile</Button>
+                        </Link>
+                        <Link href={`/consultation/new?doc=${doc.id}`} className="flex-1">
+                          <Button className="w-full h-10 md:h-12 rounded-xl md:rounded-2xl font-bold text-xs md:text-sm shadow-lg shadow-primary/10">Book Now</Button>
+                        </Link>
+                      </div>
                     </div>
                   </div>
-                </div>
-              </CardContent>
-            </Card>
-          ))}
-        </div>
+                </CardContent>
+              </Card>
+            ))}
+          </div>
+        )}
 
-        {filteredDoctors.length === 0 && (
+        {!loading && doctors.length === 0 && (
           <div className="text-center py-16 md:py-20">
             <div className="w-16 h-16 md:w-20 md:h-20 rounded-full bg-slate-100 flex items-center justify-center mx-auto mb-4">
               <Search className="w-8 h-8 md:w-10 md:h-10 text-slate-300" />
