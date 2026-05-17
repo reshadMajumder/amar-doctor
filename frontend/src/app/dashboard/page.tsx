@@ -9,7 +9,8 @@ import { Card, CardContent } from "@/components/ui/card";
 import { 
   Stethoscope, MessageSquare, Calendar, 
   Bell, ChevronRight, Activity, Plus, Wallet, 
-  FileText, ShieldCheck, ArrowRight, Video
+  FileText, ShieldCheck, ArrowRight, Video,
+  Clock, Loader2, Check, X
 } from "lucide-react";
 import { api } from "@/lib/api";
 import { CONSULTATIONS } from "@/lib/mock-data";
@@ -112,6 +113,333 @@ export default function Dashboard() {
   }, []);
 
   const upcomingConsultations = CONSULTATIONS.filter(c => c.status === 'Upcoming' || c.status === 'Pending Approval');
+
+  const [appointments, setAppointments] = useState<any[]>([]);
+  const [loadingAppointments, setLoadingAppointments] = useState(false);
+  const [actionInProgress, setActionInProgress] = useState<string | null>(null);
+  const [activeTab, setActiveTab] = useState<'pending' | 'active' | 'history'>('pending');
+
+  useEffect(() => {
+    if (user?.role !== 'doctor') return;
+
+    async function fetchAppointments() {
+      try {
+        setLoadingAppointments(true);
+        const res = await api.get('/api/v1/appointments/');
+        const list = res.data || res;
+        if (Array.isArray(list)) {
+          setAppointments(list);
+        }
+      } catch (err) {
+        console.error("Failed to fetch doctor appointments", err);
+      } finally {
+        setLoadingAppointments(false);
+      }
+    }
+    fetchAppointments();
+  }, [user]);
+
+  async function handleApprove(appointmentId: number) {
+    try {
+      setActionInProgress(String(appointmentId));
+      await api.patch(`/api/v1/appointments/${appointmentId}/approve/`);
+      // Update local state
+      setAppointments(prev => prev.map(app => 
+        app.id === appointmentId ? { ...app, status: 'doctor_approved' } : app
+      ));
+      alert("Appointment approved successfully!");
+    } catch (err: any) {
+      console.error("Failed to approve appointment", err);
+      alert(err.response?.data?.error || "Failed to approve appointment. Ensure appointment is paid first.");
+    } finally {
+      setActionInProgress(null);
+    }
+  }
+
+  async function handleReject(appointmentId: number) {
+    if (!confirm("Are you sure you want to reject this appointment?")) return;
+    try {
+      setActionInProgress(String(appointmentId));
+      await api.patch(`/api/v1/appointments/${appointmentId}/reject/`);
+      // Update local state
+      setAppointments(prev => prev.map(app => 
+        app.id === appointmentId ? { ...app, status: 'rejected' } : app
+      ));
+      alert("Appointment rejected successfully.");
+    } catch (err: any) {
+      console.error("Failed to reject appointment", err);
+      alert(err.response?.data?.error || "Failed to reject appointment.");
+    } finally {
+      setActionInProgress(null);
+    }
+  }
+
+  function formatDateTime(isoString: string) {
+    try {
+      const d = new Date(isoString);
+      return d.toLocaleDateString('en-US', {
+        weekday: 'short',
+        month: 'short',
+        day: 'numeric',
+        hour: 'numeric',
+        minute: '2-digit',
+        hour12: true
+      });
+    } catch (e) {
+      return isoString;
+    }
+  }
+
+  function renderDoctorDashboard() {
+    const pendingAppointments = appointments.filter(app => app.status === 'pending');
+    const activeAppointments = appointments.filter(app => ['doctor_approved', 'confirmed', 'in_progress'].includes(app.status));
+    const historyAppointments = appointments.filter(app => ['completed', 'cancelled', 'rejected', 'missed'].includes(app.status));
+
+    const displayedAppointments = 
+      activeTab === 'pending' ? pendingAppointments :
+      activeTab === 'active' ? activeAppointments :
+      historyAppointments;
+
+    return (
+      <div className="min-h-screen bg-[#f8fafc]">
+        <Navigation />
+        
+        <div className="max-w-5xl mx-auto px-4 pt-4 pb-24 md:pt-24 min-h-screen">
+          {/* Header */}
+          <header className="flex justify-between items-center mb-6 md:mb-10">
+            <div className="flex items-center gap-3 md:gap-4">
+              <div className="w-10 h-10 md:w-14 md:h-14 rounded-full bg-accent/10 flex items-center justify-center text-accent font-bold border border-accent/20 md:text-xl relative">
+                {user?.full_name?.charAt(0) || "D"}
+                <span className="absolute bottom-0 right-0 w-3 h-3 bg-emerald-500 border-2 border-white rounded-full" />
+              </div>
+              <div>
+                <h1 className="text-lg md:text-2xl font-bold text-slate-900 leading-tight">
+                  {user?.full_name?.startsWith("Dr.") ? user.full_name : `Dr. ${user?.full_name || "Doctor"}`}
+                </h1>
+                <p className="text-[10px] md:text-xs font-bold text-slate-400 uppercase tracking-widest flex items-center gap-1.5 mt-0.5">
+                  <ShieldCheck className="w-3.5 h-3.5 text-accent fill-accent/10" /> GraminDoc Medical Practitioner
+                </p>
+              </div>
+            </div>
+            <div className="flex gap-2">
+              <Link href="/notifications">
+                <Button variant="ghost" size="icon" className="rounded-xl relative w-10 h-10 md:w-12 md:h-12 bg-white border shadow-sm">
+                  <Bell className="w-5 h-5 md:w-6 md:h-6 text-slate-500" />
+                  {pendingAppointments.length > 0 && (
+                    <span className="absolute top-2.5 right-2.5 w-2 h-2 bg-destructive border-2 border-white rounded-full" />
+                  )}
+                </Button>
+              </Link>
+            </div>
+          </header>
+
+          {/* Stats Row */}
+          <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 mb-8">
+            <Card className="rounded-2xl border-none bg-white p-6 shadow-sm border border-slate-100 flex items-center justify-between group hover:shadow-md transition-all">
+              <div>
+                <div className="text-xs font-bold text-slate-400 uppercase tracking-wider mb-1">Pending Reviews</div>
+                <div className="text-2xl md:text-3xl font-extrabold text-slate-950">{pendingAppointments.length}</div>
+              </div>
+              <div className="w-12 h-12 rounded-xl bg-amber-50 flex items-center justify-center text-amber-500">
+                <Clock className="w-6 h-6 animate-pulse" />
+              </div>
+            </Card>
+
+            <Card className="rounded-2xl border-none bg-white p-6 shadow-sm border border-slate-100 flex items-center justify-between group hover:shadow-md transition-all">
+              <div>
+                <div className="text-xs font-bold text-slate-400 uppercase tracking-wider mb-1">Active Consults</div>
+                <div className="text-2xl md:text-3xl font-extrabold text-slate-950">{activeAppointments.length}</div>
+              </div>
+              <div className="w-12 h-12 rounded-xl bg-emerald-50 flex items-center justify-center text-emerald-500">
+                <Activity className="w-6 h-6" />
+              </div>
+            </Card>
+
+            <Card className="rounded-2xl border-none bg-white p-6 shadow-sm border border-slate-100 flex items-center justify-between group hover:shadow-md transition-all">
+              <div>
+                <div className="text-xs font-bold text-slate-400 uppercase tracking-wider mb-1">Completed Cases</div>
+                <div className="text-2xl md:text-3xl font-extrabold text-slate-950">{historyAppointments.length}</div>
+              </div>
+              <div className="w-12 h-12 rounded-xl bg-blue-50 flex items-center justify-center text-blue-500">
+                <FileText className="w-6 h-6" />
+              </div>
+            </Card>
+          </div>
+
+          {/* Navigation Tabs */}
+          <div className="flex gap-2 mb-6 bg-slate-100 p-1.5 rounded-2xl w-full max-w-md shadow-inner">
+            <button
+              onClick={() => setActiveTab('pending')}
+              className={cn(
+                "flex-1 py-3 text-xs md:text-sm font-bold rounded-xl transition-all",
+                activeTab === 'pending'
+                  ? "bg-white text-slate-900 shadow-sm"
+                  : "text-slate-500 hover:text-slate-900"
+              )}
+            >
+              Pending ({pendingAppointments.length})
+            </button>
+            <button
+              onClick={() => setActiveTab('active')}
+              className={cn(
+                "flex-1 py-3 text-xs md:text-sm font-bold rounded-xl transition-all",
+                activeTab === 'active'
+                  ? "bg-white text-slate-900 shadow-sm"
+                  : "text-slate-500 hover:text-slate-900"
+              )}
+            >
+              Active ({activeAppointments.length})
+            </button>
+            <button
+              onClick={() => setActiveTab('history')}
+              className={cn(
+                "flex-1 py-3 text-xs md:text-sm font-bold rounded-xl transition-all",
+                activeTab === 'history'
+                  ? "bg-white text-slate-900 shadow-sm"
+                  : "text-slate-500 hover:text-slate-900"
+              )}
+            >
+              History ({historyAppointments.length})
+            </button>
+          </div>
+
+          {/* Appointments List */}
+          <div className="space-y-4">
+            {loadingAppointments ? (
+              <div className="bg-white rounded-3xl p-12 text-center border-none shadow-sm flex flex-col items-center justify-center space-y-4">
+                <Loader2 className="w-8 h-8 text-accent animate-spin" />
+                <p className="text-slate-400 font-bold text-sm uppercase tracking-wider">Synchronizing clinical schedules...</p>
+              </div>
+            ) : displayedAppointments.length === 0 ? (
+              <div className="bg-white rounded-3xl p-12 text-center border-none shadow-sm flex flex-col items-center justify-center space-y-4">
+                <Stethoscope className="w-12 h-12 text-slate-200" />
+                <h3 className="font-bold text-slate-800 text-lg">No appointments found</h3>
+                <p className="text-slate-400 text-sm max-w-xs mx-auto">There are no consultations matching the selected status filter in your records.</p>
+              </div>
+            ) : (
+              displayedAppointments.map((app) => (
+                <Card key={app.id} className="rounded-3xl border-none shadow-sm hover:shadow-md transition-all bg-white p-5 md:p-6 overflow-hidden relative">
+                  <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
+                    {/* Left: Patient Initials and Info */}
+                    <div className="flex items-center gap-4">
+                      <div className="w-12 h-12 rounded-2xl bg-slate-50 flex items-center justify-center text-slate-700 font-extrabold border border-slate-100 text-base">
+                        {app.patient_name?.charAt(0) || "P"}
+                      </div>
+                      <div>
+                        <div className="font-extrabold text-slate-950 text-base flex items-center gap-2">
+                          {app.patient_name || "Anonymous Patient"}
+                        </div>
+                        <div className="text-xs text-slate-400 font-medium">{app.patient_email || "No contact info"}</div>
+                        {app.notes && (
+                          <p className="text-xs text-slate-500 bg-slate-50 border border-slate-100/50 rounded-lg p-2 mt-2 italic max-w-lg">
+                            " {app.notes} "
+                          </p>
+                        )}
+                      </div>
+                    </div>
+
+                    {/* Middle: Slot Details */}
+                    <div className="grid grid-cols-2 md:flex md:items-center gap-3 md:gap-6">
+                      <div className="space-y-1">
+                        <div className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">Scheduled Start</div>
+                        <div className="flex items-center gap-1.5 font-bold text-slate-700 text-xs md:text-sm">
+                          <Calendar className="w-3.5 h-3.5 text-accent" /> {formatDateTime(app.scheduled_start)}
+                        </div>
+                      </div>
+
+                      <div className="space-y-1">
+                        <div className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">Consult Type</div>
+                        <span className={cn(
+                          "inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-[10px] font-extrabold uppercase",
+                          app.consultation_type === 'video'
+                            ? "bg-purple-50 text-purple-600"
+                            : "bg-blue-50 text-blue-600"
+                        )}>
+                          {app.consultation_type === 'video' ? <Video className="w-3 h-3" /> : <MessageSquare className="w-3 h-3" />}
+                          {app.consultation_type}
+                        </span>
+                      </div>
+
+                      <div className="space-y-1">
+                        <div className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">Status</div>
+                        <span className={cn(
+                          "inline-flex px-2.5 py-1 rounded-full text-[10px] font-extrabold uppercase",
+                          app.status === 'pending' ? "bg-amber-50 text-amber-600" :
+                          ['doctor_approved', 'confirmed', 'in_progress'].includes(app.status) ? "bg-emerald-50 text-emerald-600" :
+                          "bg-slate-50 text-slate-600"
+                        )}>
+                          {app.status}
+                        </span>
+                      </div>
+
+                      <div className="space-y-1">
+                        <div className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">Payment</div>
+                        <span className={cn(
+                          "inline-flex px-2.5 py-1 rounded-full text-[10px] font-extrabold uppercase",
+                          app.payment_status === 'paid' ? "bg-emerald-50 text-emerald-600" : "bg-rose-50 text-rose-600"
+                        )}>
+                          {app.payment_status}
+                        </span>
+                      </div>
+                    </div>
+
+                    {/* Right: AI intake report link */}
+                    {app.ai_report && (
+                      <Link href={`/report/${app.ai_report}`} target="_blank">
+                        <Button variant="outline" size="sm" className="h-10 rounded-xl gap-2 font-bold text-xs shrink-0 bg-accent/5 border-accent/10 hover:bg-accent/10 text-accent transition-all">
+                          <FileText className="w-4 h-4" /> View AI Intake
+                        </Button>
+                      </Link>
+                    )}
+                  </div>
+
+                  {/* Actions Section (only for pending reviews) */}
+                  {app.status === 'pending' && (
+                    <div className="mt-4 pt-4 border-t border-slate-100 flex items-center justify-end gap-3">
+                      <Button
+                        variant="outline"
+                        onClick={() => handleReject(app.id)}
+                        disabled={actionInProgress !== null}
+                        className="h-10 rounded-xl font-bold text-xs gap-1.5 border-rose-100 hover:bg-rose-50 hover:text-rose-600 text-slate-600 transition-all px-4"
+                      >
+                        {actionInProgress === String(app.id) ? (
+                          <Loader2 className="w-3.5 h-3.5 animate-spin" />
+                        ) : (
+                          <X className="w-3.5 h-3.5" />
+                        )}
+                        Reject Request
+                      </Button>
+                      <Button
+                        onClick={() => handleApprove(app.id)}
+                        disabled={actionInProgress !== null}
+                        className={cn(
+                          "h-10 rounded-xl font-bold text-xs gap-1.5 shadow-md px-5 transition-all",
+                          app.payment_status !== 'paid'
+                            ? "bg-slate-100 text-slate-400 shadow-none border-none cursor-not-allowed"
+                            : "bg-emerald-500 hover:bg-emerald-600 text-white shadow-emerald-500/10"
+                        )}
+                      >
+                        {actionInProgress === String(app.id) ? (
+                          <Loader2 className="w-3.5 h-3.5 animate-spin" />
+                        ) : (
+                          <Check className="w-3.5 h-3.5" />
+                        )}
+                        {app.payment_status !== 'paid' ? "Awaiting Payment" : "Approve & Schedule"}
+                      </Button>
+                    </div>
+                  )}
+                </Card>
+              ))
+            )}
+          </div>
+        </div>
+      </div>
+    );
+  }
+
+  if (user?.role === 'doctor') {
+    return renderDoctorDashboard();
+  }
 
   return (
     <div className="min-h-screen bg-[#f8fafc]">

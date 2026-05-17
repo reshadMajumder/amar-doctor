@@ -116,7 +116,7 @@ export default function ProfilePage() {
         {/* Back Link */}
         <div className="mb-6">
           <Link 
-            href={isDoctor ? "/doctor-dashboard" : "/dashboard"}
+            href="/dashboard"
             className="inline-flex items-center gap-2 text-sm font-bold text-slate-500 hover:text-primary transition-colors"
           >
             <ArrowLeft className="w-4 h-4" />

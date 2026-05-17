@@ -98,6 +98,19 @@ class AppointmentViewSet(viewsets.ModelViewSet):
             return Response({"error": str(e)}, status=status.HTTP_400_BAD_REQUEST)
 
     @action(detail=True, methods=['patch'])
+    def reject(self, request, pk=None):
+        appointment = self.get_object()
+        if request.user != appointment.doctor:
+            return Response({"error": "Only assigned doctor can reject"}, status=status.HTTP_403_FORBIDDEN)
+        
+        reason = request.data.get('reason', 'Rejected by doctor')
+        try:
+            AppointmentService.update_status(appointment, 'rejected', request.user, reason=reason)
+            return Response(self.get_serializer(appointment).data)
+        except Exception as e:
+            return Response({"error": str(e)}, status=status.HTTP_400_BAD_REQUEST)
+
+    @action(detail=True, methods=['patch'])
     def cancel(self, request, pk=None):
         appointment = self.get_object()
         reason = request.data.get('reason', 'Cancelled by user')

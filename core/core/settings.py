@@ -37,12 +37,7 @@ SECRET_KEY = os.getenv('SECRET_KEY', 'django-insecure-fallback-key')
 DEBUG = os.getenv('DEBUG', 'True' if ENVIRONMENT != 'prod' else 'False').lower() in ('true', '1', 't')
 
 # Configure ALLOWED_HOSTS based on environment
-if DEBUG:
-    ALLOWED_HOSTS = os.getenv('ALLOWED_HOSTS', 'localhost,127.0.0.1,0.0.0.0').split(',')
-    ALLOWED_HOSTS = [host.strip() for host in ALLOWED_HOSTS if host.strip()]
-else:
-    ALLOWED_HOSTS = os.getenv('ALLOWED_HOSTS', 'amardoc.reshad.dev').split(',')
-
+ALLOWED_HOSTS=["*"]
 
 # Application definition
 

@@ -99,11 +99,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     if (!user && !isPublic) {
       router.push("/auth");
     } else if (user && pathname === "/auth") {
-      if (user.role === "doctor") {
-        router.push("/doctor-dashboard");
-      } else {
-        router.push("/dashboard");
-      }
+      router.push("/dashboard");
     }
   }, [user, loading, pathname, router]);
 
@@ -126,11 +122,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         // Fetch full profile info in background
         await fetchFreshProfile();
 
-        if (userData.role === "doctor") {
-          router.push("/doctor-dashboard");
-        } else {
-          router.push("/dashboard");
-        }
+        router.push("/dashboard");
       } else {
         throw new Error(res.message || "Login failed");
       }
@@ -186,11 +178,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
         await fetchFreshProfile();
 
-        if (userData.role === "doctor") {
-          router.push("/doctor-dashboard");
-        } else {
-          router.push("/dashboard");
-        }
+        router.push("/dashboard");
       } else {
         throw new Error(res.message || "Verification failed");
       }

@@ -19,7 +19,7 @@ export function Navigation() {
   // Dynamic Navigation Items by Role
   const navItems = user?.role === "doctor" 
     ? [
-        { label: "Dashboard", icon: Home, href: "/doctor-dashboard" },
+        { label: "Dashboard", icon: Home, href: "/dashboard" },
         { label: "Records", icon: FileText, href: "/prescriptions" },
         { label: "Profile", icon: User, href: "/profile" },
       ]
@@ -36,7 +36,7 @@ export function Navigation() {
     <>
       {/* Desktop Top Nav */}
       <nav className="hidden md:flex fixed top-0 left-0 right-0 h-16 bg-white border-b items-center px-6 z-50 justify-between shadow-sm">
-        <Link href={user?.role === "doctor" ? "/doctor-dashboard" : "/dashboard"} className="text-xl font-bold text-primary flex items-center gap-2">
+        <Link href="/dashboard" className="text-xl font-bold text-primary flex items-center gap-2">
           <Stethoscope className="w-6 h-6" />
           <span>GraminDoc AI</span>
         </Link>
