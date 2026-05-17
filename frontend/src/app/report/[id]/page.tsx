@@ -131,11 +131,13 @@ export default function ReportPage() {
   // Fetch Recommended Specialists from the DB
   useEffect(() => {
     if (!report) return;
-    const recSpec = report.recommended_specialization || "General Physician";
+    const rawSpec = report.recommended_specialization || "General Physician";
+    const isEmergencySpec = ['er', 'emergency', 'emergency room', 'icu', 'ccu'].includes(rawSpec.toLowerCase().trim());
+    const recSpec = isEmergencySpec ? "General Physician" : rawSpec;
 
     async function fetchSpecialists() {
       try {
-        const res = await api.get(`/api/v1/accounts/doctors/?specialization=${encodeURIComponent(recSpec)}`);
+        const res = await api.get(`/api/v1/auth/doctors/?specialization=${encodeURIComponent(recSpec)}`);
         const list = res.data || res;
         
         if (Array.isArray(list) && list.length > 0) {
@@ -145,6 +147,9 @@ export default function ReportPage() {
           const matching = DOCTORS.filter(doc => {
             const docSpec = doc.specialization.toLowerCase();
             const recommended = recSpec.toLowerCase();
+            if (recommended.length <= 2) {
+              return docSpec === recommended;
+            }
             return docSpec.includes(recommended) || recommended.includes(docSpec) || (recommended.includes("general") && docSpec.includes("general"));
           });
           setSuggestedDoctors(matching.length > 0 ? matching : DOCTORS.slice(0, 2));
@@ -155,6 +160,9 @@ export default function ReportPage() {
         const matching = DOCTORS.filter(doc => {
           const docSpec = doc.specialization.toLowerCase();
           const recommended = recSpec.toLowerCase();
+          if (recommended.length <= 2) {
+            return docSpec === recommended;
+          }
           return docSpec.includes(recommended) || recommended.includes(docSpec) || (recommended.includes("general") && docSpec.includes("general"));
         });
         setSuggestedDoctors(matching.length > 0 ? matching : DOCTORS.slice(0, 2));

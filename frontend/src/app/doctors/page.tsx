@@ -86,13 +86,29 @@ export default function DoctorsPage() {
   const [doctors, setDoctors] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
 
-  const specializations = ["All", "General Physician", "Pediatrics", "Cardiology", "Gynecology"];
+  const [specializations, setSpecializations] = useState<string[]>(["All", "General Physician", "Pediatrics", "Cardiology", "Gynecology"]);
+
+  // Load dynamic specializations on mount
+  useEffect(() => {
+    async function fetchSpecialties() {
+      try {
+        const res = await api.get("/api/v1/auth/doctors/specializations/");
+        const list = res.data || res;
+        if (Array.isArray(list)) {
+          setSpecializations(["All", ...list]);
+        }
+      } catch (err) {
+        console.error("Failed to load specialties", err);
+      }
+    }
+    fetchSpecialties();
+  }, []);
 
   useEffect(() => {
     async function fetchDoctors() {
       try {
         setLoading(true);
-        let url = `/api/v1/accounts/doctors/`;
+        let url = `/api/v1/auth/doctors/`;
         const params = [];
         
         if (filter !== "All") {

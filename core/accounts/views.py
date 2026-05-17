@@ -210,7 +210,14 @@ class DoctorListView(APIView):
         search = request.query_params.get('search')
 
         if specialization:
-            queryset = queryset.filter(specialization__icontains=specialization)
+            spec_clean = specialization.lower().strip()
+            if spec_clean in ['er', 'emergency', 'emergency room', 'icu', 'ccu']:
+                # Map urgent/ER cases to General Physician gates in a virtual setting
+                queryset = queryset.filter(specialization__icontains='General Physician')
+            elif len(specialization) <= 2:
+                queryset = queryset.filter(specialization__iexact=specialization)
+            else:
+                queryset = queryset.filter(specialization__icontains=specialization)
         if search:
             queryset = queryset.filter(
                 Q(user__full_name__icontains=search) |
@@ -219,3 +226,25 @@ class DoctorListView(APIView):
 
         serializer = DoctorProfileSerializer(queryset, many=True)
         return Response(success_response(data=serializer.data), status=status.HTTP_200_OK)
+
+
+class SpecializationListView(APIView):
+    permission_classes = [AllowAny]
+
+    def get(self, request):
+        from django.core.cache import cache
+        specializations = cache.get('doctor_specializations')
+        
+        if not specializations:
+            queryset = DoctorProfile.objects.filter(verification_status='approved', is_available=True)
+            if not queryset.exists():
+                queryset = DoctorProfile.objects.all()
+
+            specializations = list(queryset.values_list('specialization', flat=True).distinct())
+            
+            if "General Physician" not in specializations:
+                specializations.append("General Physician")
+                
+            cache.set('doctor_specializations', specializations, timeout=3600)
+
+        return Response(success_response(data=specializations), status=status.HTTP_200_OK)

@@ -4,7 +4,7 @@ from accounts.views import (
     PatientRegistrationView, DoctorRegistrationView, VerifyRegistrationOTPView,
     LoginView, RequestLoginOTPView, VerifyLoginOTPView,
     PasswordResetRequestView, PasswordResetVerifyView, PasswordResetConfirmView,
-    LogoutView, ProfileView, DoctorListView
+    LogoutView, ProfileView, DoctorListView, SpecializationListView
 )
 
 urlpatterns = [
@@ -23,5 +23,6 @@ urlpatterns = [
     path('password-reset/verify/', PasswordResetVerifyView.as_view(), name='password_reset_verify'),
     path('password-reset/confirm/', PasswordResetConfirmView.as_view(), name='password_reset_confirm'),
     path('profile/', ProfileView.as_view(), name='user_profile'),
+    path('doctors/specializations/', SpecializationListView.as_view(), name='doctor_specializations'),
     path('doctors/', DoctorListView.as_view(), name='doctor_list'),
 ]

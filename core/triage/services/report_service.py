@@ -6,13 +6,39 @@ class ReportService:
     def __init__(self):
         self.ai_provider = AIProviderFactory.get_provider()
 
+    def get_available_specializations(self):
+        from django.core.cache import cache
+        from accounts.models import DoctorProfile
+
+        specializations = cache.get('doctor_specializations')
+        if not specializations:
+            queryset = DoctorProfile.objects.filter(verification_status='approved', is_available=True)
+            if not queryset.exists():
+                # Sandbox fallback to fetch all profiles
+                queryset = DoctorProfile.objects.all()
+
+            specializations = list(queryset.values_list('specialization', flat=True).distinct())
+            
+            if "General Physician" not in specializations:
+                specializations.append("General Physician")
+                
+            cache.set('doctor_specializations', specializations, timeout=3600)
+            
+        return specializations
+
     def generate_report(self, session_id):
         session = AITriageSession.objects.get(id=session_id)
         messages = AITriageMessage.objects.filter(session=session).order_by('created_at')
         
         history_text = "\n".join([f"{msg.sender_type.capitalize()}: {msg.content}" for msg in messages])
         
-        prompt = REPORT_GENERATION_PROMPT.format(history=history_text)
+        specs = self.get_available_specializations()
+        specs_str = ", ".join([f'"{s}"' for s in specs])
+        
+        prompt = REPORT_GENERATION_PROMPT.format(
+            available_specializations=specs_str,
+            history=history_text
+        )
         
         try:
             report_data = self.ai_provider.generate_json(

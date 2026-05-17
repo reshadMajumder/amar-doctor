@@ -41,6 +41,9 @@ REPORT_GENERATION_PROMPT = """
 Analyze the entire conversation history and generate a structured clinical summary for the doctor.
 Extract all symptoms, their duration (if mentioned), severity, and any flags.
 
+Available Doctor Specializations on our platform:
+{available_specializations}
+
 Conversation History:
 {history}
 
@@ -53,7 +56,7 @@ Return ONLY a JSON object strictly matching this format:
     "emergency_flags": ["flag1", "flag2"],
     "ai_summary": "A concise, objective 2-3 sentence clinical summary.",
     "risk_category": "low" | "medium" | "high" | "emergency",
-    "recommended_specialization": "E.g., General Practice, Cardiology, ER",
+    "recommended_specialization": "Must be EXACTLY one of the available specializations listed above. If no specific specialized match fits, use 'General Physician'.",
     "triage_score": 5.0, // 1.0 to 10.0 scale based on urgency
     "ai_confidence_score": 9.0 // 1.0 to 10.0 scale
 }}
