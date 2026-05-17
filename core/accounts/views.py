@@ -194,3 +194,28 @@ class ProfileView(APIView):
             
             return Response(success_response(message="Profile updated", data=user_serializer.data), status=status.HTTP_200_OK)
         return Response(error_response(message="Validation Error", errors=user_serializer.errors), status=status.HTTP_400_BAD_REQUEST)
+
+
+class DoctorListView(APIView):
+    permission_classes = [AllowAny]
+
+    def get(self, request):
+        from django.db.models import Q
+        queryset = DoctorProfile.objects.filter(verification_status='approved')
+        if not queryset.exists():
+            # Dev/sandbox fallback to display profiles
+            queryset = DoctorProfile.objects.all()
+
+        specialization = request.query_params.get('specialization')
+        search = request.query_params.get('search')
+
+        if specialization:
+            queryset = queryset.filter(specialization__icontains=specialization)
+        if search:
+            queryset = queryset.filter(
+                Q(user__full_name__icontains=search) |
+                Q(specialization__icontains=search)
+            )
+
+        serializer = DoctorProfileSerializer(queryset, many=True)
+        return Response(success_response(data=serializer.data), status=status.HTTP_200_OK)
