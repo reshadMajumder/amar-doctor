@@ -57,4 +57,5 @@ class DoctorProfileSerializer(serializers.ModelSerializer):
     user = UserSerializer(read_only=True)
     class Meta:
         model = DoctorProfile
-        fields = ('id', 'user', 'specialization', 'bmdc_number', 'documents')
+        fields = ('id', 'user', 'specialization', 'bmdc_number', 'documents', 'consultation_fee', 'is_available', 'verification_status')
+        read_only_fields = ('id', 'user', 'verification_status')

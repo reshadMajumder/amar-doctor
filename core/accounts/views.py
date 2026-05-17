@@ -1,16 +1,17 @@
 from rest_framework.views import APIView
 from rest_framework.response import Response
 from rest_framework import status
-from rest_framework.permissions import AllowAny
+from rest_framework.permissions import AllowAny, IsAuthenticated
 from rest_framework_simplejwt.tokens import RefreshToken
 
 from accounts.serializers import (
     PatientRegistrationSerializer, DoctorRegistrationSerializer,
     LoginSerializer, OTPVerifySerializer, EmailRequestSerializer,
-    PasswordResetConfirmSerializer
+    PasswordResetConfirmSerializer, UserSerializer, DoctorProfileSerializer
 )
 from accounts.services.auth_service import AuthService
 from accounts.utils.responses import success_response, error_response
+from accounts.models import DoctorProfile
 
 auth_service = AuthService()
 
@@ -156,3 +157,40 @@ class LogoutView(APIView):
             return Response(success_response(message="Successfully logged out."), status=status.HTTP_200_OK)
         except Exception as e:
             return Response(error_response(message="Invalid token or already logged out."), status=status.HTTP_400_BAD_REQUEST)
+
+
+class ProfileView(APIView):
+    permission_classes = [IsAuthenticated]
+
+    def get(self, request):
+        user = request.user
+        if user.role == 'doctor':
+            try:
+                profile = user.doctor_profile
+                serializer = DoctorProfileSerializer(profile)
+                return Response(success_response(message="Profile retrieved", data=serializer.data), status=status.HTTP_200_OK)
+            except DoctorProfile.DoesNotExist:
+                pass
+        
+        serializer = UserSerializer(user)
+        return Response(success_response(message="Profile retrieved", data=serializer.data), status=status.HTTP_200_OK)
+
+    def patch(self, request):
+        user = request.user
+        user_serializer = UserSerializer(user, data=request.data, partial=True)
+        if user_serializer.is_valid():
+            user_serializer.save()
+            
+            if user.role == 'doctor':
+                try:
+                    profile = user.doctor_profile
+                    profile_serializer = DoctorProfileSerializer(profile, data=request.data, partial=True)
+                    if profile_serializer.is_valid():
+                        profile_serializer.save()
+                        return Response(success_response(message="Profile updated", data=profile_serializer.data), status=status.HTTP_200_OK)
+                    return Response(error_response(message="Validation Error", errors=profile_serializer.errors), status=status.HTTP_400_BAD_REQUEST)
+                except DoctorProfile.DoesNotExist:
+                    pass
+            
+            return Response(success_response(message="Profile updated", data=user_serializer.data), status=status.HTTP_200_OK)
+        return Response(error_response(message="Validation Error", errors=user_serializer.errors), status=status.HTTP_400_BAD_REQUEST)

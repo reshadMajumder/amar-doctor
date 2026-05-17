@@ -206,3 +206,116 @@ class TestAccountsAdminFeatures:
         user.is_suspended = True
         user.save()
         assert profile.can_consult is False
+
+
+@pytest.mark.django_db
+class TestUserProfileAPI:
+    @pytest.fixture(autouse=True)
+    def setup_locmem_cache(self, settings):
+        settings.CACHES = {
+            'default': {
+                'BACKEND': 'django.core.cache.backends.locmem.LocMemCache',
+            }
+        }
+
+    def test_get_patient_profile(self, api_client):
+        user = User.objects.create_user(
+            email='patient_profile@test.com',
+            password='password123',
+            full_name='Patient Profile',
+            role='patient',
+            is_verified=True
+        )
+        api_client.force_authenticate(user=user)
+        
+        url = reverse('user_profile')
+        response = api_client.get(url)
+        assert response.status_code == status.HTTP_200_OK
+        assert response.data['success'] is True
+        assert response.data['data']['email'] == 'patient_profile@test.com'
+        assert response.data['data']['full_name'] == 'Patient Profile'
+        assert 'specialization' not in response.data['data']
+
+    def test_get_doctor_profile(self, api_client):
+        user = User.objects.create_user(
+            email='doctor_profile@test.com',
+            password='password123',
+            full_name='Dr. Profile',
+            role='doctor',
+            is_verified=True
+        )
+        DoctorProfile.objects.create(
+            user=user,
+            specialization='Pediatrics',
+            bmdc_number='A-54321',
+            consultation_fee=600.00,
+            is_available=True
+        )
+        api_client.force_authenticate(user=user)
+        
+        url = reverse('user_profile')
+        response = api_client.get(url)
+        assert response.status_code == status.HTTP_200_OK
+        assert response.data['success'] is True
+        assert response.data['data']['user']['email'] == 'doctor_profile@test.com'
+        assert response.data['data']['specialization'] == 'Pediatrics'
+        assert float(response.data['data']['consultation_fee']) == 600.00
+        assert response.data['data']['is_available'] is True
+
+    def test_update_profile_patient(self, api_client):
+        user = User.objects.create_user(
+            email='patient_update@test.com',
+            password='password123',
+            full_name='Old Name',
+            role='patient',
+            is_verified=True
+        )
+        api_client.force_authenticate(user=user)
+        
+        url = reverse('user_profile')
+        data = {'full_name': 'New Name'}
+        response = api_client.patch(url, data)
+        assert response.status_code == status.HTTP_200_OK
+        assert response.data['success'] is True
+        assert response.data['data']['full_name'] == 'New Name'
+        
+        user.refresh_from_db()
+        assert user.full_name == 'New Name'
+
+    def test_update_profile_doctor(self, api_client):
+        user = User.objects.create_user(
+            email='doctor_update@test.com',
+            password='password123',
+            full_name='Dr. Old',
+            role='doctor',
+            is_verified=True
+        )
+        profile = DoctorProfile.objects.create(
+            user=user,
+            specialization='Orthopedics',
+            bmdc_number='A-99999',
+            consultation_fee=500.00,
+            is_available=False
+        )
+        api_client.force_authenticate(user=user)
+        
+        url = reverse('user_profile')
+        data = {
+            'full_name': 'Dr. New Name',
+            'specialization': 'Sports Medicine',
+            'consultation_fee': 800.00,
+            'is_available': True
+        }
+        response = api_client.patch(url, data)
+        assert response.status_code == status.HTTP_200_OK
+        assert response.data['success'] is True
+        assert response.data['data']['specialization'] == 'Sports Medicine'
+        assert float(response.data['data']['consultation_fee']) == 800.00
+        assert response.data['data']['is_available'] is True
+        
+        user.refresh_from_db()
+        profile.refresh_from_db()
+        assert user.full_name == 'Dr. New Name'
+        assert profile.specialization == 'Sports Medicine'
+        assert float(profile.consultation_fee) == 800.00
+        assert profile.is_available is True

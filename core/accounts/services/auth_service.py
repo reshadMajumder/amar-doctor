@@ -76,7 +76,15 @@ class AuthService:
             user.is_verified = True
             user.save()
             tokens = self.token_service.get_tokens_for_user(user)
-            return True, tokens
+            return True, {
+                'tokens': tokens,
+                'user': {
+                    'id': user.id,
+                    'email': user.email,
+                    'full_name': user.full_name,
+                    'role': user.role
+                }
+            }
         except User.DoesNotExist:
             return False, "User not found."
 
