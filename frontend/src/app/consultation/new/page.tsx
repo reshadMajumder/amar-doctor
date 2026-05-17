@@ -15,9 +15,89 @@ import {
   Video, MessageSquare, ChevronRight, ArrowLeft,
   FileText, CheckCircle2, Wallet, Loader2
 } from "lucide-react";
-import { DOCTORS, Doctor } from "@/lib/mock-data";
+
 import { cn } from "@/lib/utils";
 import { useToast } from "@/hooks/use-toast";
+import { api } from "@/lib/api";
+
+function formatSlotTime(isoString: string): string {
+  const d = new Date(isoString);
+  let hours = d.getHours();
+  const minutes = String(d.getMinutes()).padStart(2, "0");
+  const period = hours >= 12 ? "PM" : "AM";
+  hours = hours % 12;
+  if (hours === 0) hours = 12;
+  return `${hours}:${minutes} ${period}`;
+}
+
+type BackendDoctor = {
+  id: number;
+  user: {
+    id: number;
+    email: string;
+    full_name: string;
+    role: string;
+  };
+  specialization: string;
+  bmdc_number: string;
+  consultation_fee: string;
+  is_available: boolean;
+  verification_status: string;
+};
+
+function mapBackendDoctorToFrontend(backendDoc: BackendDoctor): any {
+  const mockMapping: Record<string, { rating: number; reviews: number; experience: string; languages: string[]; location: string; imageUrl: string }> = {
+    "cardiology": {
+      rating: 4.9,
+      reviews: 142,
+      experience: "15 Years",
+      languages: ["Bengali", "English"],
+      location: "Sylhet",
+      imageUrl: "https://picsum.photos/seed/doc3/400/400"
+    },
+    "pediatrics": {
+      rating: 4.8,
+      reviews: 96,
+      experience: "8 Years",
+      languages: ["Bengali", "English"],
+      location: "Chittagong",
+      imageUrl: "https://picsum.photos/seed/doc2/400/400"
+    },
+    "general physician": {
+      rating: 4.7,
+      reviews: 110,
+      experience: "12 Years",
+      languages: ["Bengali", "English"],
+      location: "Dhaka",
+      imageUrl: "https://picsum.photos/seed/doc1/400/400"
+    }
+  };
+
+  const key = backendDoc.specialization.toLowerCase();
+  const mockDetails = mockMapping[key] || {
+    rating: 4.6,
+    reviews: 45,
+    experience: "5 Years",
+    languages: ["Bengali"],
+    location: "Dhaka",
+    imageUrl: "https://picsum.photos/seed/docgeneric/400/400"
+  };
+
+  return {
+    id: String(backendDoc.user.id),
+    name: backendDoc.user.full_name.startsWith("Dr.") ? backendDoc.user.full_name : `Dr. ${backendDoc.user.full_name}`,
+    specialization: backendDoc.specialization,
+    experience: mockDetails.experience,
+    rating: mockDetails.rating,
+    reviews: mockDetails.reviews,
+    fee: `৳ ${parseFloat(backendDoc.consultation_fee).toFixed(0)}`,
+    availability: backendDoc.is_available ? "Available Today" : "Offline",
+    imageUrl: mockDetails.imageUrl,
+    languages: mockDetails.languages,
+    location: mockDetails.location,
+    bmdcNumber: backendDoc.bmdc_number
+  };
+}
 
 function BookingContent() {
   const router = useRouter();
@@ -25,7 +105,7 @@ function BookingContent() {
   const { toast } = useToast();
   
   const docId = searchParams.get("doc");
-  const [doctor, setDoctor] = useState<Doctor | null>(null);
+  const [doctor, setDoctor] = useState<any | null>(null);
   const [date, setDate] = useState<Date | undefined>(new Date());
   const [selectedSlot, setSelectedSlot] = useState<string | null>(null);
   const [consultType, setConsultType] = useState<"Video Call" | "Chat">("Video Call");
@@ -33,24 +113,103 @@ function BookingContent() {
   const [includeReport, setIncludeReport] = useState(false);
   const [hasReport, setHasReport] = useState(false);
   const [isBooking, setIsBooking] = useState(false);
+  const [slots, setSlots] = useState<any[]>([]);
+  const [loadingSlots, setLoadingSlots] = useState(false);
 
   useEffect(() => {
-    if (docId) {
-      const found = DOCTORS.find(d => d.id === docId);
-      if (found) setDoctor(found);
+    async function loadDoctor() {
+      if (!docId) return;
+      try {
+        const res = await api.get(`/api/v1/auth/doctors/?doctor_id=${docId}`);
+        const list = res.data || res;
+        if (Array.isArray(list) && list.length > 0) {
+          setDoctor(mapBackendDoctorToFrontend(list[0]));
+        } else {
+          setDoctor(null);
+        }
+      } catch (err) {
+        console.error("Failed to load doctor from DB", err);
+        setDoctor(null);
+      }
     }
-    
+
+    loadDoctor();
+
     const savedReport = localStorage.getItem("latest_report");
     if (savedReport) setHasReport(true);
   }, [docId]);
 
-  const timeSlots = [
-    "09:00 AM", "09:30 AM", "10:00 AM", "10:30 AM", 
-    "11:00 AM", "11:30 AM", "02:00 PM", "02:30 PM", 
-    "03:00 PM", "03:30 PM", "04:00 PM"
-  ];
+  useEffect(() => {
+    if (!docId) return;
+    const activeDate = date || new Date();
 
-  const handleBook = () => {
+    async function fetchSlots() {
+      try {
+        setLoadingSlots(true);
+        const yyyy = activeDate.getFullYear();
+        const mm = String(activeDate.getMonth() + 1).padStart(2, "0");
+        const dd = String(activeDate.getDate()).padStart(2, "0");
+        const dateStr = `${yyyy}-${mm}-${dd}`;
+
+        const res = await api.get(`/api/v1/appointments/doctors/${docId}/available-slots/?date=${dateStr}`);
+        const list = res.data || res;
+        if (Array.isArray(list) && list.length > 0) {
+          setSlots(list);
+        } else {
+          const mockTimeSlots = [
+            "09:00 AM", "09:30 AM", "10:00 AM", "10:30 AM", 
+            "11:00 AM", "11:30 AM", "02:00 PM", "02:30 PM", 
+            "03:00 PM", "03:30 PM", "04:00 PM"
+          ];
+          const generated = mockTimeSlots.map(timeStr => {
+            const [time, period] = timeStr.split(" ");
+            let [hours, minutes] = time.split(":").map(Number);
+            if (period === "PM" && hours !== 12) hours += 12;
+            if (period === "AM" && hours === 12) hours = 0;
+            
+            const slotDate = new Date(activeDate);
+            slotDate.setHours(hours, minutes, 0, 0);
+            
+            return {
+              start: slotDate.toISOString(),
+              end: new Date(slotDate.getTime() + 30 * 60 * 1000).toISOString(),
+              timezone: "UTC"
+            };
+          });
+          setSlots(generated);
+        }
+      } catch (err) {
+        console.error("Failed to fetch slots", err);
+        const mockTimeSlots = [
+          "09:00 AM", "09:30 AM", "10:00 AM", "10:30 AM", 
+          "11:00 AM", "11:30 AM", "02:00 PM", "02:30 PM", 
+          "03:00 PM", "03:30 PM", "04:00 PM"
+        ];
+        const generated = mockTimeSlots.map(timeStr => {
+          const [time, period] = timeStr.split(" ");
+          let [hours, minutes] = time.split(":").map(Number);
+          if (period === "PM" && hours !== 12) hours += 12;
+          if (period === "AM" && hours === 12) hours = 0;
+          
+          const slotDate = new Date(activeDate);
+          slotDate.setHours(hours, minutes, 0, 0);
+          
+          return {
+            start: slotDate.toISOString(),
+            end: new Date(slotDate.getTime() + 30 * 60 * 1000).toISOString(),
+            timezone: "UTC"
+          };
+        });
+        setSlots(generated);
+      } finally {
+        setLoadingSlots(false);
+      }
+    }
+
+    fetchSlots();
+  }, [docId, date]);
+
+  const handleBook = async () => {
     if (!selectedSlot) {
       toast({
         title: "Selection Required",
@@ -60,12 +219,59 @@ function BookingContent() {
       return;
     }
 
-    setIsBooking(true);
-    // Mock booking process
-    setTimeout(() => {
+    try {
+      setIsBooking(true);
+
+      let reportIdToAttach = null;
+      if (includeReport) {
+        reportIdToAttach = localStorage.getItem("latest_report_id");
+      }
+
+      const apptPayload = {
+        doctor: Number(docId),
+        scheduled_start: selectedSlot,
+        consultation_type: consultType === "Video Call" ? "video" : "text",
+        ai_report: reportIdToAttach ? Number(reportIdToAttach) : null,
+        notes: notes || ""
+      };
+
+      const apptResponse = await api.post("/api/v1/appointments/", apptPayload);
+      const appointment = apptResponse.data || apptResponse;
+
+      if (!appointment || !appointment.id) {
+        throw new Error("Invalid response received from appointment creation.");
+      }
+
+      const paymentPayload = {
+        appointment_id: appointment.id
+      };
+
+      const paymentResponse = await api.post("/api/v1/payments/", paymentPayload);
+      const payment = paymentResponse.data || paymentResponse;
+
+      if (payment && payment.payment_url) {
+        toast({
+          title: "Redirecting to Payment Gateway",
+          description: "Please complete your payment securely via SSLCommerz."
+        });
+        
+        setTimeout(() => {
+          window.location.href = payment.payment_url;
+        }, 1000);
+      } else {
+        throw new Error("Payment session initialization failed.");
+      }
+
+    } catch (err: any) {
+      console.error("Booking process failed:", err);
+      toast({
+        title: "Booking Failed",
+        description: err.message || err.detail || "An unexpected error occurred during checkout.",
+        variant: "destructive"
+      });
+    } finally {
       setIsBooking(false);
-      router.push("/consultation/success");
-    }, 1500);
+    }
   };
 
   if (!doctor) {
@@ -130,20 +336,30 @@ function BookingContent() {
                 <div className="flex-1">
                   <Label className="text-sm font-bold text-slate-500 uppercase tracking-widest mb-4 block">Available Slots</Label>
                   <div className="grid grid-cols-2 sm:grid-cols-3 gap-2">
-                    {timeSlots.map((slot) => (
-                      <button
-                        key={slot}
-                        onClick={() => setSelectedSlot(slot)}
-                        className={cn(
-                          "h-12 rounded-xl text-sm font-bold transition-all border",
-                          selectedSlot === slot 
-                            ? "bg-primary text-white border-primary shadow-lg shadow-primary/20" 
-                            : "bg-white text-slate-600 border-slate-100 hover:border-primary/30"
-                        )}
-                      >
-                        {slot}
-                      </button>
-                    ))}
+                    {loadingSlots ? (
+                      <div className="col-span-full py-6 flex items-center justify-center gap-2 text-slate-500 font-semibold text-xs">
+                        <Loader2 className="w-4 h-4 animate-spin text-primary" /> Loading live slots...
+                      </div>
+                    ) : slots.length === 0 ? (
+                      <div className="col-span-full py-6 text-center text-slate-400 font-semibold text-xs italic">
+                        No slots available for this day.
+                      </div>
+                    ) : (
+                      slots.map((slot) => (
+                        <button
+                          key={slot.start}
+                          onClick={() => setSelectedSlot(slot.start)}
+                          className={cn(
+                            "h-12 rounded-xl text-xs font-extrabold transition-all border",
+                            selectedSlot === slot.start
+                              ? "bg-primary text-white border-primary shadow-lg shadow-primary/20" 
+                              : "bg-white text-slate-600 border-slate-100 hover:border-primary/30"
+                          )}
+                        >
+                          {formatSlotTime(slot.start)}
+                        </button>
+                      ))
+                    )}
                   </div>
                 </div>
               </div>

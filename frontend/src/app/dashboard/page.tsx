@@ -11,7 +11,8 @@ import {
   Bell, ChevronRight, Activity, Plus, Wallet, 
   FileText, ShieldCheck, ArrowRight, Video
 } from "lucide-react";
-import { CONSULTATIONS, DOCTORS } from "@/lib/mock-data";
+import { api } from "@/lib/api";
+import { CONSULTATIONS } from "@/lib/mock-data";
 import { cn } from "@/lib/utils";
 import { useAuth } from "@/hooks/useAuth";
 
@@ -19,9 +20,95 @@ export default function Dashboard() {
   const { user } = useAuth();
   const [hasReport, setHasReport] = useState(false);
 
+  const [doctors, setDoctors] = useState<any[]>([]);
+
   useEffect(() => {
     const report = localStorage.getItem("latest_report");
     if (report) setHasReport(true);
+  }, []);
+
+  type BackendDoctor = {
+    id: number;
+    user: {
+      id: number;
+      email: string;
+      full_name: string;
+      role: string;
+    };
+    specialization: string;
+    bmdc_number: string;
+    consultation_fee: string;
+    is_available: boolean;
+    verification_status: string;
+  };
+
+  function mapBackendDoctorToFrontend(backendDoc: BackendDoctor): any {
+    const mockMapping: Record<string, { rating: number; reviews: number; experience: string; languages: string[]; location: string; imageUrl: string }> = {
+      "cardiology": {
+        rating: 4.9,
+        reviews: 142,
+        experience: "15 Years",
+        languages: ["Bengali", "English"],
+        location: "Sylhet",
+        imageUrl: "https://picsum.photos/seed/doc3/400/400"
+      },
+      "pediatrics": {
+        rating: 4.8,
+        reviews: 96,
+        experience: "8 Years",
+        languages: ["Bengali", "English"],
+        location: "Chittagong",
+        imageUrl: "https://picsum.photos/seed/doc2/400/400"
+      },
+      "general physician": {
+        rating: 4.7,
+        reviews: 110,
+        experience: "12 Years",
+        languages: ["Bengali", "English"],
+        location: "Dhaka",
+        imageUrl: "https://picsum.photos/seed/doc1/400/400"
+      }
+    };
+
+    const key = backendDoc.specialization.toLowerCase();
+    const mockDetails = mockMapping[key] || {
+      rating: 4.6,
+      reviews: 45,
+      experience: "5 Years",
+      languages: ["Bengali"],
+      location: "Dhaka",
+      imageUrl: "https://picsum.photos/seed/docgeneric/400/400"
+    };
+
+    return {
+      id: String(backendDoc.user.id),
+      name: backendDoc.user.full_name.startsWith("Dr.") ? backendDoc.user.full_name : `Dr. ${backendDoc.user.full_name}`,
+      specialization: backendDoc.specialization,
+      experience: mockDetails.experience,
+      rating: mockDetails.rating,
+      reviews: mockDetails.reviews,
+      fee: `৳ ${parseFloat(backendDoc.consultation_fee).toFixed(0)}`,
+      availability: backendDoc.is_available ? "Available Today" : "Offline",
+      imageUrl: mockDetails.imageUrl,
+      languages: mockDetails.languages,
+      location: mockDetails.location,
+      bmdcNumber: backendDoc.bmdc_number
+    };
+  }
+
+  useEffect(() => {
+    async function fetchTopDoctors() {
+      try {
+        const res = await api.get('/api/v1/auth/doctors/');
+        const list = res.data || res;
+        if (Array.isArray(list)) {
+          setDoctors(list.slice(0, 4).map(mapBackendDoctorToFrontend));
+        }
+      } catch (err) {
+        console.error("Failed to fetch top doctors", err);
+      }
+    }
+    fetchTopDoctors();
   }, []);
 
   const upcomingConsultations = CONSULTATIONS.filter(c => c.status === 'Upcoming' || c.status === 'Pending Approval');
@@ -183,7 +270,7 @@ export default function Dashboard() {
               <Link href="/doctors" className="text-[10px] md:text-sm font-bold text-primary">Browse All</Link>
             </div>
             <div className="flex md:grid md:grid-cols-1 overflow-x-auto gap-4 pb-4 no-scrollbar -mx-4 px-4 md:mx-0 md:px-0">
-              {DOCTORS.map(doc => (
+              {doctors.map(doc => (
                 <div key={doc.id} className="min-w-[160px] md:min-w-0 bg-white rounded-2xl border-none shadow-sm flex-shrink-0 group overflow-hidden border border-transparent hover:border-primary/10 hover:shadow-md transition-all">
                   <div className="h-20 md:h-32 bg-slate-100 relative">
                     <img src={doc.imageUrl} alt={doc.name} className="object-cover w-full h-full" />

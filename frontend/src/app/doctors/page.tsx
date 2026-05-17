@@ -7,7 +7,6 @@ import { Card, CardContent } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { api } from "@/lib/api";
 import { Search, Filter, Star, Clock, MapPin, Languages, CheckCircle, Loader2 } from "lucide-react";
-import { DOCTORS } from "@/lib/mock-data";
 import Link from "next/link";
 import { cn } from "@/lib/utils";
 
@@ -124,24 +123,14 @@ export default function DoctorsPage() {
         const res = await api.get(url);
         const list = res.data || res;
 
-        if (Array.isArray(list) && list.length > 0) {
+        if (Array.isArray(list)) {
           setDoctors(list.map(mapBackendDoctorToFrontend));
         } else {
-          // Fallback to locally filtered mock DOCTORS
-          const fallback = DOCTORS.filter(doc => 
-            (filter === "All" || doc.specialization.toLowerCase().includes(filter.toLowerCase())) &&
-            (doc.name.toLowerCase().includes(search.toLowerCase()) || doc.specialization.toLowerCase().includes(search.toLowerCase()))
-          );
-          setDoctors(fallback);
+          setDoctors([]);
         }
       } catch (err) {
         console.error("Failed to fetch backend doctors", err);
-        // Fallback to mock DOCTORS
-        const fallback = DOCTORS.filter(doc => 
-          (filter === "All" || doc.specialization.toLowerCase().includes(filter.toLowerCase())) &&
-          (doc.name.toLowerCase().includes(search.toLowerCase()) || doc.specialization.toLowerCase().includes(search.toLowerCase()))
-        );
-        setDoctors(fallback);
+        setDoctors([]);
       } finally {
         setLoading(false);
       }

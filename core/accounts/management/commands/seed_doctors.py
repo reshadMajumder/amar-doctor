@@ -1,11 +1,13 @@
 import random
+from datetime import time
 from django.core.management.base import BaseCommand
 from django.db import transaction
 from faker import Faker
 from accounts.models import User, DoctorProfile
+from appointments.models import DoctorAvailability
 
 class Command(BaseCommand):
-    help = 'Seeds verified doctor profiles with Faker'
+    help = 'Seeds verified doctor profiles with Faker and sets up booking availability'
 
     def add_arguments(self, parser):
         parser.add_argument(
@@ -19,9 +21,15 @@ class Command(BaseCommand):
         count = options['count']
         fake = Faker()
         
-        specializations = ['General Physician', 'Pediatrics', 'Cardiology', 'Gynecology', 'Neurology', 'Ophthalmology', 'Dermatology', 'Orthopedics', 'ENT', 'Urology', 'Endocrinology', 'Nephrology', 'Hepatology', 'Rheumatology', 'Infectious Diseases', 'Pulmonology', 'Gastroenterology', 'Hematology', 'Oncology', 'Psychiatry', 'Neurology', 'Ophthalmology', 'Dermatology', 'Orthopedics', 'ENT', 'Urology', 'Endocrinology', 'Nephrology', 'Hepatology', 'Rheumatology', 'Infectious Diseases', 'Pulmonology', 'Gastroenterology', 'Hematology', 'Oncology', 'Psychiatry', 'Neurology', 'Ophthalmology', 'Dermatology', 'Orthopedics', 'ENT', 'Urology', 'Endocrinology', 'Nephrology', 'Hepatology', 'Rheumatology', 'Infectious Diseases', 'Pulmonology', 'Gastroenterology', 'Hematology', 'Oncology', 'Psychiatry', 'Neurology', 'Ophthalmology', 'Dermatology', 'Orthopedics', 'ENT', 'Urology', 'Endocrinology', 'Nephrology', 'Hepatology', 'Rheumatology', 'Infectious Diseases', 'Pulmonology', 'Gastroenterology', 'Hematology', 'Oncology', 'Psychiatry']
+        specializations = ['General Physician', 'Pediatrics', 'Cardiology', 'Gynecology', 'Neurology', 'Ophthalmology', 'Dermatology', 'Orthopedics', 'ENT', 'Urology', 'Endocrinology', 'Nephrology', 'Hepatology', 'Rheumatology', 'Infectious Diseases', 'Pulmonology', 'Gastroenterology', 'Hematology', 'Oncology', 'Psychiatry']
         
-        self.stdout.write(self.style.NOTICE(f'Seeding {count} doctors...'))
+        self.stdout.write(self.style.WARNING('Wiping existing doctor users, profiles, and availabilities...'))
+        with transaction.atomic():
+            # Deleting User cascade deletes DoctorProfile and DoctorAvailability
+            deleted_users = User.objects.filter(role='doctor').delete()
+            self.stdout.write(self.style.SUCCESS(f'Deleted existing doctor objects: {deleted_users}'))
+
+        self.stdout.write(self.style.NOTICE(f'Seeding {count} doctors with active schedules...'))
         
         created_count = 0
         with transaction.atomic():
@@ -55,12 +63,27 @@ class Command(BaseCommand):
                     verification_status='approved',
                     is_available=True
                 )
+
+                # 3. Create Daily Availability Slots (0=Monday to 6=Sunday)
+                for day in range(7):
+                    DoctorAvailability.objects.create(
+                        doctor=user,
+                        weekday=day,
+                        start_time=time(9, 0),
+                        end_time=time(17, 0),
+                        break_start_time=time(13, 0),
+                        break_end_time=time(14, 0),
+                        slot_duration_minutes=30,
+                        max_appointments_per_slot=1,
+                        timezone='UTC',
+                        is_active=True
+                    )
                 
                 created_count += 1
-                self.stdout.write(self.style.SUCCESS(f'Created Doctor: {name} ({spec}) - {email}'))
+                self.stdout.write(self.style.SUCCESS(f'Created Doctor: {name} ({spec}) - {email} with full active availability'))
 
         # Clear the cached specializations so the AI instantly picks up new specialties!
         from django.core.cache import cache
         cache.delete('doctor_specializations')
 
-        self.stdout.write(self.style.SUCCESS(f'Successfully seeded {created_count} doctor profiles!'))
+        self.stdout.write(self.style.SUCCESS(f'Successfully seeded {created_count} doctor profiles with booking availabilities!'))

@@ -10,26 +10,123 @@ import {
   ArrowLeft, ShieldCheck, Award, MessageCircle,
   Stethoscope, Calendar, Share2
 } from "lucide-react";
-import { DOCTORS, Doctor } from "@/lib/mock-data";
+import { api } from "@/lib/api";
 import Link from "next/link";
 import { cn } from "@/lib/utils";
+
+type BackendDoctor = {
+  id: number;
+  user: {
+    id: number;
+    email: string;
+    full_name: string;
+    role: string;
+  };
+  specialization: string;
+  bmdc_number: string;
+  consultation_fee: string;
+  is_available: boolean;
+  verification_status: string;
+};
+
+function mapBackendDoctorToFrontend(backendDoc: BackendDoctor): any {
+  const mockMapping: Record<string, { rating: number; reviews: number; experience: string; languages: string[]; location: string; imageUrl: string }> = {
+    "cardiology": {
+      rating: 4.9,
+      reviews: 142,
+      experience: "15 Years",
+      languages: ["Bengali", "English"],
+      location: "Sylhet",
+      imageUrl: "https://picsum.photos/seed/doc3/400/400"
+    },
+    "pediatrics": {
+      rating: 4.8,
+      reviews: 96,
+      experience: "8 Years",
+      languages: ["Bengali", "English"],
+      location: "Chittagong",
+      imageUrl: "https://picsum.photos/seed/doc2/400/400"
+    },
+    "general physician": {
+      rating: 4.7,
+      reviews: 110,
+      experience: "12 Years",
+      languages: ["Bengali", "English"],
+      location: "Dhaka",
+      imageUrl: "https://picsum.photos/seed/doc1/400/400"
+    }
+  };
+
+  const key = backendDoc.specialization.toLowerCase();
+  const mockDetails = mockMapping[key] || {
+    rating: 4.6,
+    reviews: 45,
+    experience: "5 Years",
+    languages: ["Bengali"],
+    location: "Dhaka",
+    imageUrl: "https://picsum.photos/seed/docgeneric/400/400"
+  };
+
+  return {
+    id: String(backendDoc.user.id),
+    name: backendDoc.user.full_name.startsWith("Dr.") ? backendDoc.user.full_name : `Dr. ${backendDoc.user.full_name}`,
+    specialization: backendDoc.specialization,
+    experience: mockDetails.experience,
+    rating: mockDetails.rating,
+    reviews: mockDetails.reviews,
+    fee: `৳ ${parseFloat(backendDoc.consultation_fee).toFixed(0)}`,
+    availability: backendDoc.is_available ? "Available Today" : "Offline",
+    imageUrl: mockDetails.imageUrl,
+    languages: mockDetails.languages,
+    location: mockDetails.location,
+    bmdcNumber: backendDoc.bmdc_number
+  };
+}
 
 export default function DoctorProfilePage() {
   const { id } = useParams();
   const router = useRouter();
-  const [doctor, setDoctor] = useState<Doctor | null>(null);
+  const [doctor, setDoctor] = useState<any | null>(null);
+  const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    if (id) {
-      const found = DOCTORS.find(d => d.id === id);
-      if (found) setDoctor(found);
+    async function loadDoctor() {
+      if (!id) return;
+      try {
+        setLoading(true);
+        const res = await api.get(`/api/v1/auth/doctors/?doctor_id=${id}`);
+        const list = res.data || res;
+        if (Array.isArray(list) && list.length > 0) {
+          setDoctor(mapBackendDoctorToFrontend(list[0]));
+        } else {
+          setDoctor(null);
+        }
+      } catch (err) {
+        console.error("Failed to load doctor from DB", err);
+        setDoctor(null);
+      } finally {
+        setLoading(false);
+      }
     }
+    loadDoctor();
   }, [id]);
+
+  if (loading) {
+    return (
+      <div className="min-h-screen flex items-center justify-center bg-[#f6f8fa]">
+        <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary"></div>
+      </div>
+    );
+  }
 
   if (!doctor) {
     return (
-      <div className="min-h-screen flex items-center justify-center">
-        <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary"></div>
+      <div className="min-h-screen flex items-center justify-center p-6 text-center bg-[#f6f8fa]">
+        <div className="space-y-4">
+          <Stethoscope className="w-12 h-12 text-slate-300 mx-auto" />
+          <h2 className="text-xl font-bold">Doctor not found</h2>
+          <Button onClick={() => router.push('/doctors')}>Browse Doctors</Button>
+        </div>
       </div>
     );
   }
@@ -152,7 +249,7 @@ export default function DoctorProfilePage() {
             <Card className="rounded-[2rem] border-none shadow-sm bg-white p-6">
               <div className="text-[10px] font-bold text-slate-400 uppercase tracking-widest mb-4">Languages</div>
               <div className="space-y-3">
-                {doctor.languages.map((lang, i) => (
+                {doctor.languages.map((lang: string, i: number) => (
                   <div key={i} className="flex items-center gap-3">
                     <div className="w-8 h-8 rounded-lg bg-primary/10 flex items-center justify-center text-primary font-bold text-xs">
                       {lang[0]}

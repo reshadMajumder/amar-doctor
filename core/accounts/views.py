@@ -208,7 +208,10 @@ class DoctorListView(APIView):
 
         specialization = request.query_params.get('specialization')
         search = request.query_params.get('search')
+        doctor_id = request.query_params.get('doctor_id')
 
+        if doctor_id:
+            queryset = queryset.filter(user_id=doctor_id)
         if specialization:
             spec_clean = specialization.lower().strip()
             if spec_clean in ['er', 'emergency', 'emergency room', 'icu', 'ccu']:

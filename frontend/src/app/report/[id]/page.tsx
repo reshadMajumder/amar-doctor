@@ -8,7 +8,7 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { api } from "@/lib/api";
-import { DOCTORS } from "@/lib/mock-data";
+
 import { 
   FileText, ArrowLeft, Clock, Activity, AlertTriangle, 
   CheckCircle, Stethoscope, Share2, Download, Loader2, Star 
@@ -118,6 +118,8 @@ export default function ReportPage() {
         setLoading(true);
         const data = await api.get(`/api/v1/triage/reports/${reportId}/`);
         setReport(data);
+        localStorage.setItem("latest_report_id", String(data.id));
+        localStorage.setItem("latest_report", JSON.stringify(data));
       } catch (err: any) {
         console.error("Failed to load report", err);
       } finally {
@@ -140,32 +142,14 @@ export default function ReportPage() {
         const res = await api.get(`/api/v1/auth/doctors/?specialization=${encodeURIComponent(recSpec)}`);
         const list = res.data || res;
         
-        if (Array.isArray(list) && list.length > 0) {
+        if (Array.isArray(list)) {
           setSuggestedDoctors(list.map(mapBackendDoctorToFrontend));
         } else {
-          // Fallback to mock filtering
-          const matching = DOCTORS.filter(doc => {
-            const docSpec = doc.specialization.toLowerCase();
-            const recommended = recSpec.toLowerCase();
-            if (recommended.length <= 2) {
-              return docSpec === recommended;
-            }
-            return docSpec.includes(recommended) || recommended.includes(docSpec) || (recommended.includes("general") && docSpec.includes("general"));
-          });
-          setSuggestedDoctors(matching.length > 0 ? matching : DOCTORS.slice(0, 2));
+          setSuggestedDoctors([]);
         }
       } catch (err) {
         console.error("Failed to fetch backend doctors", err);
-        // Fallback to mock filtering
-        const matching = DOCTORS.filter(doc => {
-          const docSpec = doc.specialization.toLowerCase();
-          const recommended = recSpec.toLowerCase();
-          if (recommended.length <= 2) {
-            return docSpec === recommended;
-          }
-          return docSpec.includes(recommended) || recommended.includes(docSpec) || (recommended.includes("general") && docSpec.includes("general"));
-        });
-        setSuggestedDoctors(matching.length > 0 ? matching : DOCTORS.slice(0, 2));
+        setSuggestedDoctors([]);
       }
     }
 
