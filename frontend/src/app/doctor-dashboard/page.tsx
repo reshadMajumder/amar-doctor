@@ -15,8 +15,10 @@ import {
 import { CONSULTATIONS } from "@/lib/mock-data";
 import { cn } from "@/lib/utils";
 import { useToast } from "@/hooks/use-toast";
+import { useAuth } from "@/hooks/useAuth";
 
 export default function DoctorDashboard() {
+  const { user } = useAuth();
   const { toast } = useToast();
   const [appointments, setAppointments] = useState(CONSULTATIONS);
 
@@ -69,10 +71,14 @@ export default function DoctorDashboard() {
 
         <div className="bg-slate-50 p-5 rounded-3xl border border-slate-100">
           <div className="flex items-center gap-4">
-            <div className="w-10 h-10 rounded-full bg-primary/10 flex items-center justify-center font-bold text-primary border border-primary/20">DR</div>
+            <div className="w-10 h-10 rounded-full bg-primary/10 flex items-center justify-center font-bold text-primary border border-primary/20">
+              {user?.full_name?.charAt(0) || "D"}
+            </div>
             <div className="flex-1 overflow-hidden">
-              <div className="text-sm font-bold truncate">Dr. Ariful Islam</div>
-              <div className="text-[10px] text-accent font-bold uppercase tracking-widest">Active Session</div>
+              <div className="text-sm font-bold truncate">{user?.full_name || "Dr. User"}</div>
+              <div className="text-[10px] text-accent font-bold uppercase tracking-widest truncate">
+                {user?.specialization || "Active Session"}
+              </div>
             </div>
           </div>
         </div>

@@ -13,8 +13,10 @@ import {
 } from "lucide-react";
 import { CONSULTATIONS, DOCTORS } from "@/lib/mock-data";
 import { cn } from "@/lib/utils";
+import { useAuth } from "@/hooks/useAuth";
 
 export default function Dashboard() {
+  const { user } = useAuth();
   const [hasReport, setHasReport] = useState(false);
 
   useEffect(() => {
@@ -32,9 +34,13 @@ export default function Dashboard() {
         {/* Header */}
         <header className="flex justify-between items-center mb-6 md:mb-10">
           <div className="flex items-center gap-3 md:gap-4">
-            <div className="w-10 h-10 md:w-14 md:h-14 rounded-full bg-primary/10 flex items-center justify-center text-primary font-bold border border-primary/20 md:text-xl">A</div>
+            <div className="w-10 h-10 md:w-14 md:h-14 rounded-full bg-primary/10 flex items-center justify-center text-primary font-bold border border-primary/20 md:text-xl">
+              {user?.full_name?.charAt(0) || "U"}
+            </div>
             <div>
-              <h1 className="text-lg md:text-2xl font-bold text-slate-900 leading-tight">Ariful Islam</h1>
+              <h1 className="text-lg md:text-2xl font-bold text-slate-900 leading-tight">
+                {user?.full_name || "Patient User"}
+              </h1>
               <p className="text-[10px] md:text-xs font-bold text-slate-400 uppercase tracking-widest">Premium Member</p>
             </div>
           </div>

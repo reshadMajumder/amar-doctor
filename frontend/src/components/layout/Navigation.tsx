@@ -2,28 +2,41 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { Home, Stethoscope, MessageSquare, Bell, Wallet, FileText } from "lucide-react";
+import { 
+  Home, Stethoscope, MessageSquare, Bell, 
+  Wallet, FileText, User, UserSquare2, LogOut 
+} from "lucide-react";
 import { cn } from "@/lib/utils";
-
-const navItems = [
-  { label: "Home", icon: Home, href: "/dashboard" },
-  { label: "Doctors", icon: Stethoscope, href: "/doctors" },
-  { label: "Triage", icon: MessageSquare, href: "/triage" },
-  { label: "Wallet", icon: Wallet, href: "/wallet" },
-  { label: "Records", icon: FileText, href: "/prescriptions" },
-];
+import { useAuth } from "@/hooks/useAuth";
 
 export function Navigation() {
   const pathname = usePathname();
+  const { user, logout } = useAuth();
 
   // Hide nav on landing page or auth
   if (pathname === "/" || pathname === "/auth") return null;
+
+  // Dynamic Navigation Items by Role
+  const navItems = user?.role === "doctor" 
+    ? [
+        { label: "Dashboard", icon: Home, href: "/doctor-dashboard" },
+        { label: "Records", icon: FileText, href: "/prescriptions" },
+        { label: "Profile", icon: User, href: "/profile" },
+      ]
+    : [
+        { label: "Home", icon: Home, href: "/dashboard" },
+        { label: "Doctors", icon: Stethoscope, href: "/doctors" },
+        { label: "Triage", icon: MessageSquare, href: "/triage" },
+        { label: "Wallet", icon: Wallet, href: "/wallet" },
+        { label: "Records", icon: FileText, href: "/prescriptions" },
+        { label: "Profile", icon: User, href: "/profile" },
+      ];
 
   return (
     <>
       {/* Desktop Top Nav */}
       <nav className="hidden md:flex fixed top-0 left-0 right-0 h-16 bg-white border-b items-center px-6 z-50 justify-between shadow-sm">
-        <Link href="/dashboard" className="text-xl font-bold text-primary flex items-center gap-2">
+        <Link href={user?.role === "doctor" ? "/doctor-dashboard" : "/dashboard"} className="text-xl font-bold text-primary flex items-center gap-2">
           <Stethoscope className="w-6 h-6" />
           <span>GraminDoc AI</span>
         </Link>
@@ -50,9 +63,31 @@ export function Navigation() {
             <span className="absolute top-1 right-1 w-2 h-2 bg-destructive rounded-full" />
           </Link>
           <div className="w-px h-6 bg-slate-200" />
-          <Link href="/" className="text-slate-600 font-bold text-sm hover:text-primary">
-            Logout
-          </Link>
+          
+          <div className="flex items-center gap-2">
+            <Link 
+              href="/profile" 
+              className="flex items-center gap-2 p-1.5 px-3 rounded-full hover:bg-slate-50 transition-colors"
+            >
+              <div className={cn(
+                "w-7 h-7 rounded-full flex items-center justify-center font-bold text-xs text-white",
+                user?.role === "doctor" ? "bg-accent" : "bg-primary"
+              )}>
+                {user?.full_name?.charAt(0) || "U"}
+              </div>
+              <span className="text-xs font-bold text-slate-700 hidden lg:inline">
+                {user?.full_name || "Profile"}
+              </span>
+            </Link>
+            
+            <button 
+              onClick={logout}
+              className="p-2 text-slate-400 hover:text-destructive transition-colors"
+              title="Logout"
+            >
+              <LogOut className="w-4 h-4" />
+            </button>
+          </div>
         </div>
       </nav>
 
@@ -72,7 +107,9 @@ export function Navigation() {
             >
               <div className={cn(
                 "p-2 rounded-xl transition-all",
-                isActive ? "bg-primary/10" : "bg-transparent"
+                isActive 
+                  ? (user?.role === "doctor" ? "bg-accent/10 text-accent" : "bg-primary/10 text-primary") 
+                  : "bg-transparent"
               )}>
                 <Icon className="w-5 h-5" />
               </div>
