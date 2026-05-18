@@ -7,7 +7,8 @@ import {
   Stethoscope, MessageSquare, Send, Calendar, 
   Activity, FileText, CheckCheck, Loader2, 
   ArrowLeft, Check, LogOut, Clock, ShieldAlert,
-  AlertCircle
+  AlertCircle, PlusCircle, Image, Smile, Mic,
+  Phone, Video, Info
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
@@ -88,8 +89,21 @@ export default function ChatRoomPage() {
         const messagesRes = await api.get(`/api/v1/chat/rooms/${roomId}/messages/`);
         const list = messagesRes.results || messagesRes || [];
         if (Array.isArray(list)) {
+          const normalized = list.map((msg: any) => {
+            if (typeof msg.sender === "number" || typeof msg.sender === "string") {
+              return {
+                ...msg,
+                sender: {
+                  id: Number(msg.sender),
+                  name: msg.sender_name || "User",
+                  role: ""
+                }
+              };
+            }
+            return msg;
+          });
           // MessageCursorPagination returns list in reverse-chronological order, reverse it for presentation
-          setMessages([...list].reverse());
+          setMessages([...normalized].reverse());
         }
       } catch (err) {
         console.error("Failed to load chat data", err);
@@ -132,7 +146,16 @@ export default function ChatRoomPage() {
         const { event: eventType, data } = payload;
 
         if (eventType === "chat.message") {
-          setMessages((prev) => [...prev, data]);
+          const msg = data;
+          const normalized = (typeof msg.sender === "number" || typeof msg.sender === "string") ? {
+            ...msg,
+            sender: {
+              id: Number(msg.sender),
+              name: msg.sender_name || "User",
+              role: ""
+            }
+          } : msg;
+          setMessages((prev) => [...prev, normalized]);
           setIsPartnerTyping(false);
           scrollToBottom();
         } else if (eventType === "typing.status") {
@@ -272,37 +295,59 @@ export default function ChatRoomPage() {
   const isDoctor = user?.role === "doctor";
   const partnerName = isDoctor ? room.patient.full_name : room.doctor.full_name;
   const partnerRole = isDoctor ? "PATIENT" : "CLINICAL SPECIALIST";
+  const partnerInitials = partnerName
+    ? partnerName.split(' ').map((n: string) => n[0]).join('').toUpperCase().slice(0, 2)
+    : "U";
   const aiReport = room.appointment.ai_report_details;
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-slate-50 via-slate-100 to-blue-50/20 flex flex-col font-sans">
       {/* Premium Glass Header */}
-      <header className="sticky top-0 z-30 bg-white/70 backdrop-blur-xl border-b border-slate-200/50 shadow-sm px-6 py-4 flex items-center justify-between">
-        <div className="flex items-center gap-4">
+      <header className="sticky top-0 z-30 bg-white/80 backdrop-blur-xl border-b border-slate-100 shadow-sm px-6 py-3.5 flex items-center justify-between">
+        <div className="flex items-center gap-3">
           <Link href="/dashboard">
-            <Button variant="ghost" size="icon" className="rounded-full hover:bg-slate-100">
+            <Button variant="ghost" size="icon" className="rounded-full hover:bg-slate-100/80 w-9 h-9">
               <ArrowLeft className="w-5 h-5 text-slate-600" />
             </Button>
           </Link>
-          <div>
-            <div className="flex items-center gap-2">
-              <h1 className="font-extrabold text-slate-900 text-base md:text-lg tracking-tight">{partnerName}</h1>
-              <Badge className="text-[9px] font-black tracking-widest uppercase rounded bg-slate-100 text-slate-500 border-none px-1.5 py-0.5">{partnerRole}</Badge>
+          <div className="flex items-center gap-3">
+            {/* Dynamic visual avatar in header */}
+            <div className="w-10 h-10 rounded-full bg-gradient-to-tr from-blue-600 to-indigo-600 flex items-center justify-center font-bold text-sm text-white select-none shadow-sm shadow-blue-500/10 shrink-0">
+              {partnerInitials}
             </div>
-            <div className="flex items-center gap-2 mt-0.5">
-              <span className={cn("w-2 h-2 rounded-full", 
-                connectionStatus === "connected" ? "bg-emerald-500 animate-pulse" :
-                connectionStatus === "connecting" ? "bg-amber-400" : "bg-rose-500"
-              )} />
-              <span className="text-[10px] text-slate-400 font-bold uppercase tracking-wider">
-                {connectionStatus === "connected" ? "REAL-TIME SECURED" : 
-                 connectionStatus === "connecting" ? "ESTABLISHING SIGNAL..." : "DISCONNECTED"}
-              </span>
+            <div>
+              <div className="flex items-center gap-2">
+                <h1 className="font-extrabold text-slate-900 text-base tracking-tight">{partnerName}</h1>
+                <Badge className="text-[9px] font-black tracking-widest uppercase rounded bg-blue-50 text-blue-600 border-none px-1.5 py-0.5">{partnerRole}</Badge>
+              </div>
+              <div className="flex items-center gap-1.5 mt-0.5">
+                <span className={cn("w-2 h-2 rounded-full", 
+                  connectionStatus === "connected" ? "bg-emerald-500 animate-pulse" :
+                  connectionStatus === "connecting" ? "bg-amber-400" : "bg-rose-500"
+                )} />
+                <span className="text-[9px] text-slate-400 font-bold uppercase tracking-wider">
+                  {connectionStatus === "connected" ? "Active Now" : 
+                   connectionStatus === "connecting" ? "Connecting..." : "Offline"}
+                </span>
+              </div>
             </div>
           </div>
         </div>
 
         <div className="flex items-center gap-3">
+          {/* Aesthetic Call Icons for Premium Telemedicine UI */}
+          <div className="hidden sm:flex items-center gap-1 mr-3 border-r border-slate-100 pr-3">
+            <Button variant="ghost" size="icon" className="w-9 h-9 rounded-full text-blue-500 hover:text-blue-600 hover:bg-blue-50/50">
+              <Phone className="w-4.5 h-4.5" />
+            </Button>
+            <Button variant="ghost" size="icon" className="w-9 h-9 rounded-full text-blue-500 hover:text-blue-600 hover:bg-blue-50/50">
+              <Video className="w-4.5 h-4.5" />
+            </Button>
+            <Button variant="ghost" size="icon" className="w-9 h-9 rounded-full text-blue-500 hover:text-blue-600 hover:bg-blue-50/50">
+              <Info className="w-4.5 h-4.5" />
+            </Button>
+          </div>
+
           {/* Status Indicator */}
           <div className="hidden md:flex flex-col items-end mr-2">
             <span className="text-[9px] font-black uppercase text-slate-400 tracking-widest">Consultation Status</span>
@@ -310,8 +355,8 @@ export default function ChatRoomPage() {
               room.status === "active" ? "text-emerald-500" :
               room.status === "waiting" ? "text-amber-500 animate-pulse" : "text-slate-400"
             )}>
-              {room.status === "active" ? "Ongoing Live Consultation" : 
-               room.status === "waiting" ? "Awaiting Partner..." : "Completed / Closed"}
+              {room.status === "active" ? "Ongoing Live" : 
+               room.status === "waiting" ? "Awaiting Partner..." : "Completed"}
             </span>
           </div>
 
@@ -381,44 +426,51 @@ export default function ChatRoomPage() {
           <div className="flex-1 overflow-y-auto p-6 space-y-4 no-scrollbar">
             {messages.map((msg, idx) => {
               const isMine = msg.sender.id === user?.id;
-              return (
-                <div key={msg.id || idx} className={cn("flex flex-col max-w-[75%]", 
-                  isMine ? "ml-auto items-end" : "mr-auto items-start"
-                )}>
-                  {/* Sender Name */}
-                  <span className="text-[10px] text-slate-400 font-bold uppercase tracking-wider mb-1 px-1">
-                    {isMine ? "You" : msg.sender.name}
-                  </span>
-                  
-                  {/* Bubble */}
-                  <div className={cn("p-3.5 rounded-2xl text-sm leading-relaxed shadow-sm",
-                    isMine ? "bg-primary text-white rounded-br-none" : "bg-slate-100 text-slate-800 rounded-bl-none"
-                  )}>
-                    {msg.content}
+              if (isMine) {
+                return (
+                  <div key={msg.id || idx} className="flex flex-col items-end max-w-[80%] ml-auto group">
+                    <div className="bg-gradient-to-r from-blue-600 to-indigo-600 text-white px-4 py-2.5 rounded-[20px] rounded-tr-[4px] text-[14px] leading-relaxed shadow-sm transition-all duration-200">
+                      {msg.content}
+                    </div>
+                    <span className="text-[9px] text-slate-400 mt-1 px-1 flex items-center gap-1 font-semibold opacity-0 group-hover:opacity-100 transition-opacity duration-200">
+                      {new Date(msg.created_at).toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'})}
+                      <CheckCheck className="w-3 h-3 text-blue-500" />
+                    </span>
                   </div>
-
-                  {/* Sent Date / Indicator */}
-                  <span className="text-[9px] text-slate-400 mt-1 px-1 flex items-center gap-1 font-semibold">
-                    {new Date(msg.created_at).toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'})}
-                    {isMine && <CheckCheck className="w-3 h-3 text-emerald-500" />}
-                  </span>
-                </div>
-              );
+                );
+              } else {
+                return (
+                  <div key={msg.id || idx} className="flex items-end gap-2.5 max-w-[80%] mr-auto group">
+                    <div className="w-7 h-7 rounded-full bg-gradient-to-tr from-blue-100 to-indigo-100 flex items-center justify-center font-black text-[10px] text-blue-700 shrink-0 select-none shadow-sm border border-blue-50">
+                      {partnerInitials}
+                    </div>
+                    <div className="flex flex-col items-start">
+                      <div className="bg-slate-100 text-slate-800 px-4 py-2.5 rounded-[20px] rounded-tl-[4px] text-[14px] leading-relaxed shadow-sm hover:bg-slate-200/80 transition-colors">
+                        {msg.content}
+                      </div>
+                      <span className="text-[9px] text-slate-400 mt-1 px-1 font-semibold opacity-0 group-hover:opacity-100 transition-opacity duration-200">
+                        {new Date(msg.created_at).toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'})}
+                      </span>
+                    </div>
+                  </div>
+                );
+              }
             })}
 
             {/* Typing Indicator */}
             {isPartnerTyping && (
-              <div className="flex flex-col items-start mr-auto max-w-[75%] animate-pulse">
-                <span className="text-[10px] text-slate-400 font-bold uppercase tracking-wider mb-1 px-1">
-                  {partnerName}
-                </span>
-                <div className="p-3 bg-slate-50 text-slate-400 rounded-2xl rounded-bl-none text-xs flex items-center gap-2 border">
-                  <span className="flex gap-1">
-                    <span className="w-1.5 h-1.5 bg-slate-400 rounded-full animate-bounce" style={{ animationDelay: '0ms' }} />
-                    <span className="w-1.5 h-1.5 bg-slate-400 rounded-full animate-bounce" style={{ animationDelay: '150ms' }} />
-                    <span className="w-1.5 h-1.5 bg-slate-400 rounded-full animate-bounce" style={{ animationDelay: '300ms' }} />
-                  </span>
-                  typing...
+              <div className="flex items-end gap-2.5 mr-auto max-w-[80%]">
+                <div className="w-7 h-7 rounded-full bg-gradient-to-tr from-blue-100 to-indigo-100 flex items-center justify-center font-black text-[10px] text-blue-700 shrink-0 select-none shadow-sm border border-blue-50">
+                  {partnerInitials}
+                </div>
+                <div className="flex flex-col items-start">
+                  <div className="px-4 py-2.5 bg-slate-100 text-slate-500 rounded-[20px] rounded-tl-[4px] text-xs flex items-center gap-1.5 border border-slate-200/30">
+                    <span className="flex gap-1 items-center py-1">
+                      <span className="w-1.5 h-1.5 bg-slate-400 rounded-full animate-bounce" style={{ animationDelay: '0ms' }} />
+                      <span className="w-1.5 h-1.5 bg-slate-400 rounded-full animate-bounce" style={{ animationDelay: '150ms' }} />
+                      <span className="w-1.5 h-1.5 bg-slate-400 rounded-full animate-bounce" style={{ animationDelay: '300ms' }} />
+                    </span>
+                  </div>
                 </div>
               </div>
             )}
@@ -426,23 +478,66 @@ export default function ChatRoomPage() {
             <div ref={chatEndRef} />
           </div>
 
-          {/* Footer controls: text inputs */}
-          <div className="p-4 bg-slate-50 border-t border-slate-100 flex gap-3 items-center">
-            <input 
-              type="text" 
-              placeholder={room.status === "ended" ? "Consultation closed." : "Type your message here..."}
-              value={inputText}
-              onChange={handleInputChange}
-              onKeyDown={(e) => e.key === "Enter" && handleSend()}
-              disabled={room.status === "ended" || connectionStatus !== "connected"}
-              className="flex-1 bg-white border border-slate-200 rounded-2xl px-4 py-3 text-sm focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary disabled:bg-slate-100 disabled:text-slate-400"
-            />
+          {/* Footer controls: Messenger style */}
+          <div className="p-3 bg-white border-t border-slate-100 flex gap-2 items-center">
+            <div className="flex items-center gap-1 text-blue-500 shrink-0">
+              <Button 
+                variant="ghost" 
+                size="icon" 
+                disabled={room.status === "ended"} 
+                className="w-9 h-9 rounded-full text-blue-500 hover:text-blue-600 hover:bg-blue-50 transition-colors"
+              >
+                <PlusCircle className="w-5.5 h-5.5" />
+              </Button>
+              <Button 
+                variant="ghost" 
+                size="icon" 
+                disabled={room.status === "ended"} 
+                className="w-9 h-9 rounded-full text-blue-500 hover:text-blue-600 hover:bg-blue-50 transition-colors"
+              >
+                <Image className="w-5.5 h-5.5" />
+              </Button>
+              <Button 
+                variant="ghost" 
+                size="icon" 
+                disabled={room.status === "ended"} 
+                className="w-9 h-9 rounded-full text-blue-500 hover:text-blue-600 hover:bg-blue-50 transition-colors"
+              >
+                <Mic className="w-5.5 h-5.5" />
+              </Button>
+            </div>
+
+            <div className="flex-1 relative flex items-center">
+              <input 
+                type="text" 
+                placeholder={room.status === "ended" ? "Consultation closed" : "Aa"}
+                value={inputText}
+                onChange={handleInputChange}
+                onKeyDown={(e) => e.key === "Enter" && handleSend()}
+                disabled={room.status === "ended" || connectionStatus !== "connected"}
+                className="w-full bg-slate-100 border-none rounded-full pl-4 pr-11 py-2.5 text-sm placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:bg-slate-50 transition-all disabled:bg-slate-100/50 disabled:text-slate-400 text-slate-800"
+              />
+              <Button 
+                variant="ghost" 
+                size="icon" 
+                disabled={room.status === "ended"} 
+                className="absolute right-1.5 w-8 h-8 rounded-full text-blue-500 hover:text-blue-600 hover:bg-blue-50 transition-colors"
+              >
+                <Smile className="w-5 h-5" />
+              </Button>
+            </div>
+
             <Button 
               onClick={handleSend}
               disabled={room.status === "ended" || !inputText.trim() || connectionStatus !== "connected"}
-              className="bg-primary hover:bg-primary/95 text-white w-12 h-12 rounded-2xl shadow-md shadow-primary/10 shrink-0"
+              className={cn(
+                "w-9 h-9 rounded-full shrink-0 flex items-center justify-center transition-all shadow-sm",
+                inputText.trim() && connectionStatus === "connected"
+                  ? "bg-blue-600 hover:bg-blue-700 text-white shadow-blue-500/10 scale-105" 
+                  : "bg-slate-100 text-slate-400 hover:bg-slate-200 border-none shadow-none cursor-not-allowed"
+              )}
             >
-              <Send className="w-5 h-5" />
+              <Send className="w-4 h-4 ml-0.5" />
             </Button>
           </div>
 

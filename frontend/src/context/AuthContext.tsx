@@ -53,7 +53,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       if (res.success && res.data) {
         // If data contains nested 'user' key (doctor response has 'user' field containing basic user data)
         const profileData = res.data.user 
-          ? { ...res.data.user, ...res.data, user: undefined } 
+          ? { ...res.data, ...res.data.user, user: undefined, profile_id: res.data.id } 
           : res.data;
         setUser(profileData);
         localStorage.setItem("user", JSON.stringify(profileData));
@@ -211,7 +211,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       const res = await api.patch("api/v1/auth/profile", data);
       if (res.success && res.data) {
         const profileData = res.data.user 
-          ? { ...res.data.user, ...res.data, user: undefined } 
+          ? { ...res.data, ...res.data.user, user: undefined, profile_id: res.data.id } 
           : res.data;
         setUser(profileData);
         localStorage.setItem("user", JSON.stringify(profileData));
