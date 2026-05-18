@@ -71,11 +71,205 @@ export default function ChatRoomPage() {
   const [loading, setLoading] = useState(true);
   const [actionInProgress, setActionInProgress] = useState(false);
   const [connectionStatus, setConnectionStatus] = useState<"connecting" | "connected" | "disconnected">("connecting");
+  const [showSidebarMobile, setShowSidebarMobile] = useState(false);
 
   const socketRef = useRef<WebSocket | null>(null);
   const chatEndRef = useRef<HTMLDivElement | null>(null);
   const typingTimeoutRef = useRef<NodeJS.Timeout | null>(null);
   const isTypingRef = useRef(false);
+
+  // WebRTC Video Call State
+  const [callState, setCallState] = useState<"idle" | "calling" | "incoming" | "connected">("idle");
+  const [isAudioMuted, setIsAudioMuted] = useState(false);
+  const [isVideoMuted, setIsVideoMuted] = useState(false);
+
+  const localVideoRef = useRef<HTMLVideoElement | null>(null);
+  const remoteVideoRef = useRef<HTMLVideoElement | null>(null);
+  const localStreamRef = useRef<MediaStream | null>(null);
+  const peerConnectionRef = useRef<RTCPeerConnection | null>(null);
+  const pendingIceCandidatesRef = useRef<RTCIceCandidate[]>([]);
+  const offerRef = useRef<any>(null);
+
+  const pcConfig = {
+    iceServers: [
+      { urls: "stun:stun.l.google.com:19302" },
+      { urls: "stun:stun1.l.google.com:19302" },
+      { urls: "stun:stun2.l.google.com:19302" }
+    ]
+  };
+
+  const sendCallSignal = (signal: any) => {
+    if (socketRef.current && socketRef.current.readyState === WebSocket.OPEN) {
+      socketRef.current.send(JSON.stringify({
+        event: "call.signal",
+        data: { signal }
+      }));
+    }
+  };
+
+  const cleanupCall = () => {
+    if (localStreamRef.current) {
+      localStreamRef.current.getTracks().forEach((track) => track.stop());
+      localStreamRef.current = null;
+    }
+    if (peerConnectionRef.current) {
+      peerConnectionRef.current.close();
+      peerConnectionRef.current = null;
+    }
+    if (localVideoRef.current) {
+      localVideoRef.current.srcObject = null;
+    }
+    if (remoteVideoRef.current) {
+      remoteVideoRef.current.srcObject = null;
+    }
+    offerRef.current = null;
+    pendingIceCandidatesRef.current = [];
+    setCallState("idle");
+    setIsAudioMuted(false);
+    setIsVideoMuted(false);
+  };
+
+  const startCall = async () => {
+    if (room?.status === "ended") return;
+    setCallState("calling");
+    try {
+      const stream = await navigator.mediaDevices.getUserMedia({ video: true, audio: true });
+      localStreamRef.current = stream;
+      if (localVideoRef.current) {
+        localVideoRef.current.srcObject = stream;
+      }
+
+      const pc = new RTCPeerConnection(pcConfig);
+      peerConnectionRef.current = pc;
+
+      stream.getTracks().forEach((track) => {
+        pc.addTrack(track, stream);
+      });
+
+      pc.ontrack = (event) => {
+        if (remoteVideoRef.current && event.streams[0]) {
+          remoteVideoRef.current.srcObject = event.streams[0];
+        }
+      };
+
+      pc.onicecandidate = (event) => {
+        if (event.candidate) {
+          sendCallSignal({ type: "candidate", candidate: event.candidate });
+        }
+      };
+
+      const offer = await pc.createOffer();
+      await pc.setLocalDescription(offer);
+      sendCallSignal({ type: "offer", sdp: offer });
+    } catch (err) {
+      console.error("Failed to start call:", err);
+      cleanupCall();
+    }
+  };
+
+  const acceptCall = async () => {
+    if (!offerRef.current) return;
+    setCallState("connected");
+    try {
+      const stream = await navigator.mediaDevices.getUserMedia({ video: true, audio: true });
+      localStreamRef.current = stream;
+      if (localVideoRef.current) {
+        localVideoRef.current.srcObject = stream;
+      }
+
+      const pc = new RTCPeerConnection(pcConfig);
+      peerConnectionRef.current = pc;
+
+      stream.getTracks().forEach((track) => {
+        pc.addTrack(track, stream);
+      });
+
+      pc.ontrack = (event) => {
+        if (remoteVideoRef.current && event.streams[0]) {
+          remoteVideoRef.current.srcObject = event.streams[0];
+        }
+      };
+
+      pc.onicecandidate = (event) => {
+        if (event.candidate) {
+          sendCallSignal({ type: "candidate", candidate: event.candidate });
+        }
+      };
+
+      await pc.setRemoteDescription(new RTCSessionDescription(offerRef.current));
+      while (pendingIceCandidatesRef.current.length > 0) {
+        const candidate = pendingIceCandidatesRef.current.shift();
+        if (candidate) {
+          await pc.addIceCandidate(candidate);
+        }
+      }
+
+      const answer = await pc.createAnswer();
+      await pc.setLocalDescription(answer);
+      sendCallSignal({ type: "answer", sdp: answer });
+    } catch (err) {
+      console.error("Failed to accept call:", err);
+      cleanupCall();
+    }
+  };
+
+  const declineCall = () => {
+    sendCallSignal({ type: "reject" });
+    cleanupCall();
+  };
+
+  const endCall = () => {
+    sendCallSignal({ type: "hangup" });
+    cleanupCall();
+  };
+
+  const toggleAudio = () => {
+    if (localStreamRef.current) {
+      const audioTrack = localStreamRef.current.getAudioTracks()[0];
+      if (audioTrack) {
+        audioTrack.enabled = !audioTrack.enabled;
+        setIsAudioMuted(!audioTrack.enabled);
+      }
+    }
+  };
+
+  const toggleVideo = () => {
+    if (localStreamRef.current) {
+      const videoTrack = localStreamRef.current.getVideoTracks()[0];
+      if (videoTrack) {
+        videoTrack.enabled = !videoTrack.enabled;
+        setIsVideoMuted(!videoTrack.enabled);
+      }
+    }
+  };
+
+  const handleIncomingCallSignal = async (signal: any) => {
+    if (!signal) return;
+    if (signal.type === "offer") {
+      setCallState("incoming");
+      offerRef.current = signal.sdp;
+    } else if (signal.type === "answer") {
+      if (peerConnectionRef.current) {
+        await peerConnectionRef.current.setRemoteDescription(new RTCSessionDescription(signal.sdp));
+        setCallState("connected");
+        while (pendingIceCandidatesRef.current.length > 0) {
+          const candidate = pendingIceCandidatesRef.current.shift();
+          if (candidate) {
+            await peerConnectionRef.current.addIceCandidate(candidate);
+          }
+        }
+      }
+    } else if (signal.type === "candidate") {
+      const candidate = new RTCIceCandidate(signal.candidate);
+      if (peerConnectionRef.current && peerConnectionRef.current.remoteDescription) {
+        await peerConnectionRef.current.addIceCandidate(candidate);
+      } else {
+        pendingIceCandidatesRef.current.push(candidate);
+      }
+    } else if (signal.type === "reject" || signal.type === "hangup") {
+      cleanupCall();
+    }
+  };
 
   useEffect(() => {
     async function fetchRoomAndMessages() {
@@ -166,6 +360,8 @@ export default function ChatRoomPage() {
           setRoom((prev) => prev ? { ...prev, status: "active" } : null);
         } else if (eventType === "consultation.completed") {
           setRoom((prev) => prev ? { ...prev, status: "ended" } : null);
+        } else if (eventType === "call.signal") {
+          handleIncomingCallSignal(data.signal);
         }
       } catch (e) {
         console.error("Error parsing websocket frame", e);
@@ -185,6 +381,12 @@ export default function ChatRoomPage() {
     return () => {
       if (socket.readyState === WebSocket.OPEN || socket.readyState === WebSocket.CONNECTING) {
         socket.close();
+      }
+      if (localStreamRef.current) {
+        localStreamRef.current.getTracks().forEach((track) => track.stop());
+      }
+      if (peerConnectionRef.current) {
+        peerConnectionRef.current.close();
       }
     };
   }, [room?.id, user?.id]);
@@ -317,7 +519,7 @@ export default function ChatRoomPage() {
             </div>
             <div>
               <div className="flex items-center gap-2">
-                <h1 className="font-extrabold text-slate-900 text-base tracking-tight">{partnerName}</h1>
+                <h1 className="font-extrabold text-slate-900 text-sm sm:text-base tracking-tight max-w-[100px] sm:max-w-[180px] md:max-w-none truncate">{partnerName}</h1>
                 <Badge className="text-[9px] font-black tracking-widest uppercase rounded bg-blue-50 text-blue-600 border-none px-1.5 py-0.5">{partnerRole}</Badge>
               </div>
               <div className="flex items-center gap-1.5 mt-0.5">
@@ -334,17 +536,28 @@ export default function ChatRoomPage() {
           </div>
         </div>
 
-        <div className="flex items-center gap-3">
+        <div className="flex items-center gap-1.5 sm:gap-3">
           {/* Aesthetic Call Icons for Premium Telemedicine UI */}
-          <div className="hidden sm:flex items-center gap-1 mr-3 border-r border-slate-100 pr-3">
-            <Button variant="ghost" size="icon" className="w-9 h-9 rounded-full text-blue-500 hover:text-blue-600 hover:bg-blue-50/50">
-              <Phone className="w-4.5 h-4.5" />
+          <div className="flex items-center gap-0.5 sm:gap-1.5 mr-0.5 sm:mr-3 md:border-r md:border-slate-100 md:pr-3">
+            <Button variant="ghost" size="icon" className="w-8 h-8 sm:w-9 sm:h-9 rounded-full text-blue-500 hover:text-blue-600 hover:bg-blue-50/50">
+              <Phone className="w-4 h-4 sm:w-4.5 sm:h-4.5" />
             </Button>
-            <Button variant="ghost" size="icon" className="w-9 h-9 rounded-full text-blue-500 hover:text-blue-600 hover:bg-blue-50/50">
-              <Video className="w-4.5 h-4.5" />
+            <Button 
+              variant="ghost" 
+              size="icon" 
+              onClick={startCall}
+              disabled={room.status === "ended" || connectionStatus !== "connected" || callState !== "idle"}
+              className="w-8 h-8 sm:w-9 sm:h-9 rounded-full text-blue-500 hover:text-blue-600 hover:bg-blue-50/50 disabled:opacity-50"
+            >
+              <Video className="w-4 h-4 sm:w-4.5 sm:h-4.5" />
             </Button>
-            <Button variant="ghost" size="icon" className="w-9 h-9 rounded-full text-blue-500 hover:text-blue-600 hover:bg-blue-50/50">
-              <Info className="w-4.5 h-4.5" />
+            <Button 
+              variant="ghost" 
+              size="icon" 
+              onClick={() => setShowSidebarMobile(true)}
+              className="w-8 h-8 sm:w-9 sm:h-9 rounded-full text-blue-500 hover:text-blue-600 hover:bg-blue-50/50"
+            >
+              <Info className="w-4 h-4 sm:w-4.5 sm:h-4.5" />
             </Button>
           </div>
 
@@ -364,22 +577,23 @@ export default function ChatRoomPage() {
             <Button 
               onClick={handleCompleteSession}
               disabled={actionInProgress}
-              className="bg-rose-500 hover:bg-rose-600 text-white font-bold text-xs rounded-xl h-10 gap-1.5 shadow-md shadow-rose-500/10"
+              className="bg-rose-500 hover:bg-rose-600 text-white font-bold text-xs rounded-xl h-10 px-3 md:px-4 gap-1.5 shadow-md shadow-rose-500/10"
             >
               {actionInProgress ? (
                 <Loader2 className="w-3.5 h-3.5 animate-spin" />
               ) : (
                 <LogOut className="w-3.5 h-3.5" />
               )}
-              End Consultation
+              <span className="hidden md:inline">End Consultation</span>
             </Button>
           )}
 
           {!isDoctor && room.status === "ended" && (
             <Link href="/dashboard">
-              <Button className="bg-emerald-500 hover:bg-emerald-600 text-white font-bold text-xs rounded-xl h-10 gap-1.5">
+              <Button className="bg-emerald-500 hover:bg-emerald-600 text-white font-bold text-xs rounded-xl h-10 px-3 md:px-4 gap-1.5">
                 <Check className="w-3.5 h-3.5" />
-                Return to Dashboard
+                <span className="hidden md:inline">Return to Dashboard</span>
+                <span className="md:hidden">Done</span>
               </Button>
             </Link>
           )}
@@ -387,10 +601,10 @@ export default function ChatRoomPage() {
       </header>
 
       {/* Main Container */}
-      <div className="flex-1 max-w-7xl w-full mx-auto p-4 md:p-6 grid grid-cols-1 lg:grid-cols-3 gap-6 overflow-hidden">
+      <div className="flex-1 max-w-7xl w-full mx-auto p-0 md:p-6 grid grid-cols-1 lg:grid-cols-3 gap-6 overflow-hidden">
         
         {/* Left Section: Active Chat Room */}
-        <div className="lg:col-span-2 flex flex-col bg-white border border-slate-200/60 rounded-3xl overflow-hidden shadow-sm h-[calc(100vh-180px)] min-h-[500px]">
+        <div className="lg:col-span-2 flex flex-col bg-white border-0 md:border md:border-slate-200/60 rounded-none md:rounded-[2rem] overflow-hidden shadow-none md:shadow-sm h-[calc(100dvh-70px)] md:h-[calc(100vh-160px)] min-h-[450px]">
           
           {/* Waiting Banner */}
           {room.status === "waiting" && (
@@ -544,7 +758,7 @@ export default function ChatRoomPage() {
         </div>
 
         {/* Right Section: Clinical AI Triage Summary */}
-        <div className="space-y-6">
+        <div className="hidden lg:block space-y-6">
           
           {/* AI Clinical Sidebar */}
           {aiReport ? (
@@ -647,9 +861,256 @@ export default function ChatRoomPage() {
             </ul>
           </Card>
 
-        </div>
-
       </div>
+    </div>
+
+      {/* Mobile Info Drawer Overlay */}
+      {showSidebarMobile && (
+        <div className="fixed inset-0 z-40 bg-slate-950/60 backdrop-blur-sm lg:hidden animate-in fade-in duration-200" onClick={() => setShowSidebarMobile(false)}>
+          <div className="absolute right-0 top-0 bottom-0 w-[85%] max-w-sm bg-slate-50 p-6 overflow-y-auto flex flex-col space-y-6 shadow-2xl animate-in slide-in-from-right duration-300" onClick={(e) => e.stopPropagation()}>
+            <div className="flex justify-between items-center pb-3 border-b border-slate-200">
+              <h3 className="font-extrabold text-slate-800 text-sm tracking-tight flex items-center gap-1.5">
+                <Info className="w-4 h-4 text-blue-500" />
+                Consultation Info
+              </h3>
+              <Button 
+                variant="ghost" 
+                size="icon" 
+                onClick={() => setShowSidebarMobile(false)}
+                className="w-8 h-8 rounded-full hover:bg-slate-200"
+              >
+                ✕
+              </Button>
+            </div>
+
+            <div className="space-y-6">
+              {aiReport ? (
+                <div className="bg-white border border-slate-200/60 rounded-[2rem] p-6 space-y-4 shadow-sm relative overflow-hidden">
+                  <div className="h-1.5 bg-gradient-to-r from-accent to-emerald-400 absolute top-0 left-0 right-0" />
+                  <div className="flex justify-between items-center pt-1">
+                    <h4 className="text-xs font-black text-slate-800 flex items-center gap-1.5">
+                      <Activity className="w-4 h-4 text-accent animate-pulse" />
+                      AI Intake Report
+                    </h4>
+                    <Badge className={cn("text-[9px] font-black tracking-widest px-2 py-0.5 rounded",
+                      aiReport.risk_category?.toLowerCase() === 'high' ? 'bg-rose-50 text-rose-600 border border-rose-100' :
+                      'bg-amber-50 text-amber-600 border border-amber-100'
+                    )}>
+                      {aiReport.risk_category || "MEDIUM"} RISK
+                    </Badge>
+                  </div>
+
+                  <div className="space-y-1.5">
+                    <span className="text-[9px] font-bold text-slate-400 uppercase tracking-widest">Clinical Summary</span>
+                    <div className="bg-slate-50 border border-slate-100 rounded-xl p-3 text-[10px] leading-relaxed text-slate-600 font-semibold italic relative">
+                      {aiReport.ai_summary || "Symptoms logged but summary details not generated."}
+                    </div>
+                  </div>
+
+                  {Array.isArray(aiReport.extracted_symptoms) && aiReport.extracted_symptoms.length > 0 && (
+                    <div className="space-y-1.5">
+                      <span className="text-[9px] font-bold text-slate-400 uppercase tracking-widest">Extracted Symptoms</span>
+                      <div className="flex flex-wrap gap-1">
+                        {aiReport.extracted_symptoms.map((symptom, idx) => (
+                          <Badge key={idx} variant="secondary" className="text-[9px] font-extrabold bg-slate-100 text-slate-600 rounded px-2 py-0.5 border-none">
+                            {symptom}
+                          </Badge>
+                        ))}
+                      </div>
+                    </div>
+                  )}
+
+                  {aiReport.recommended_specialization && (
+                    <div className="bg-blue-50/50 border border-blue-100/50 rounded-xl p-3 flex items-center gap-2">
+                      <div className="w-7 h-7 bg-blue-100/80 rounded-lg flex items-center justify-center text-blue-600 shrink-0">
+                        <Stethoscope className="w-3.5 h-3.5" />
+                      </div>
+                      <div>
+                        <div className="text-[8px] font-bold text-blue-400 uppercase tracking-widest">Route</div>
+                        <div className="text-[10px] font-bold text-blue-900 leading-tight">{aiReport.recommended_specialization}</div>
+                      </div>
+                    </div>
+                  )}
+                </div>
+              ) : (
+                <div className="bg-white border rounded-[2rem] p-6 text-center flex flex-col items-center justify-center shadow-sm">
+                  <div className="w-12 h-12 rounded-full bg-slate-50 border flex items-center justify-center text-slate-400 mb-3 shadow-inner">
+                    <FileText className="w-5 h-5" />
+                  </div>
+                  <h4 className="text-xs font-bold text-slate-800 mb-1">Direct consultation</h4>
+                  <p className="text-slate-400 text-[10px] leading-relaxed mb-3">No pre-triage logged.</p>
+                  <div className="bg-slate-50 border border-slate-100 rounded-lg p-3 w-full text-[10px] text-slate-500 font-semibold italic text-left">
+                    Notes: "{room.appointment.notes || "No patient notes provided."}"
+                  </div>
+                </div>
+              )}
+
+              <div className="bg-slate-900 border border-slate-800 rounded-[2rem] p-6 text-white space-y-4 shadow-xl relative overflow-hidden">
+                <h4 className="text-[9px] font-bold uppercase tracking-widest text-slate-400 text-center">Consultation Guide</h4>
+                <ul className="space-y-3 text-[11px] text-slate-300 font-medium">
+                  <li className="flex gap-2">
+                    <div className="w-4 h-4 bg-emerald-500/10 text-emerald-400 rounded-full flex items-center justify-center shrink-0 border border-emerald-500/20">
+                      <Check className="w-2.5 h-2.5" />
+                    </div>
+                    <span>Verify identity & state BMDC approval.</span>
+                  </li>
+                  <li className="flex gap-2">
+                    <div className="w-4 h-4 bg-emerald-500/10 text-emerald-400 rounded-full flex items-center justify-center shrink-0 border border-emerald-500/20">
+                      <Check className="w-2.5 h-2.5" />
+                    </div>
+                    <span>Discuss logged symptoms directly.</span>
+                  </li>
+                  {isDoctor && (
+                    <li className="flex gap-2 items-center">
+                      <div className="w-4 h-4 bg-accent/10 text-accent rounded-full flex items-center justify-center shrink-0 border border-accent/20">
+                        <Activity className="w-2.5 h-2.5" />
+                      </div>
+                      <Link href={`/prescriptions/new?appt=${room.appointment.id}`} className="hover:underline text-accent font-extrabold">
+                        Generate E-Prescription
+                      </Link>
+                    </li>
+                  )}
+                </ul>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* WebRTC Video Call Overlay */}
+      {callState !== "idle" && (
+        <div className="fixed inset-0 z-50 bg-slate-950/95 backdrop-blur-xl flex flex-col items-center justify-center p-6 text-white animate-in fade-in zoom-in-95 duration-200">
+          
+          {/* Ringing / Incoming screen */}
+          {(callState === "calling" || callState === "incoming") && (
+            <div className="flex flex-col items-center justify-center max-w-md w-full text-center space-y-8">
+              <div className="relative">
+                {/* Pulsing visual circles */}
+                <div className="absolute inset-0 bg-blue-500/20 rounded-full animate-ping scale-150 opacity-75 animate-duration-1000" />
+                <div className="absolute inset-0 bg-indigo-500/10 rounded-full animate-pulse scale-125" />
+                <div className="w-28 h-28 rounded-full bg-gradient-to-tr from-blue-600 to-indigo-600 flex items-center justify-center font-extrabold text-3xl select-none shadow-2xl relative border-2 border-white/10">
+                  {partnerInitials}
+                </div>
+              </div>
+              
+              <div>
+                <h2 className="text-2xl font-black tracking-tight">{partnerName}</h2>
+                <Badge className="mt-1 bg-white/10 hover:bg-white/20 text-blue-300 font-bold uppercase tracking-wider text-[10px]">
+                  {partnerRole}
+                </Badge>
+                <p className="text-slate-400 text-sm font-semibold tracking-wide mt-4 uppercase animate-pulse">
+                  {callState === "calling" ? "Calling..." : "Incoming Video Call..."}
+                </p>
+              </div>
+
+              {/* Action buttons */}
+              <div className="flex items-center gap-6 pt-4">
+                {callState === "incoming" ? (
+                  <>
+                    <Button 
+                      onClick={declineCall} 
+                      className="bg-rose-500 hover:bg-rose-600 text-white rounded-full w-14 h-14 flex items-center justify-center shadow-lg shadow-rose-500/20 transition-all hover:scale-105"
+                    >
+                      <Phone className="w-6 h-6 rotate-[135deg]" />
+                    </Button>
+                    <Button 
+                      onClick={acceptCall} 
+                      className="bg-emerald-500 hover:bg-emerald-600 text-white rounded-full w-16 h-16 flex items-center justify-center shadow-lg shadow-emerald-500/20 transition-all hover:scale-105 animate-bounce"
+                    >
+                      <Video className="w-7 h-7" />
+                    </Button>
+                  </>
+                ) : (
+                  <Button 
+                    onClick={endCall} 
+                    className="bg-rose-500 hover:bg-rose-600 text-white rounded-full w-16 h-16 flex items-center justify-center shadow-lg shadow-rose-500/20 transition-all hover:scale-105"
+                  >
+                    <Phone className="w-6 h-6 rotate-[135deg]" />
+                  </Button>
+                )}
+              </div>
+            </div>
+          )}
+
+          {/* Connected Video Screen */}
+          {callState === "connected" && (
+            <div className="relative w-full h-full max-w-5xl flex flex-col justify-between items-center rounded-3xl overflow-hidden bg-slate-900 border border-white/5 shadow-2xl">
+              
+              {/* Remote Video (Full Screen) */}
+              <video 
+                ref={remoteVideoRef} 
+                autoPlay 
+                playsInline 
+                className="absolute inset-0 w-full h-full object-cover rounded-3xl"
+              />
+
+              {/* Local Video (Floating Thumbnail) */}
+              <div className="absolute top-4 right-4 w-32 md:w-44 aspect-[3/4] rounded-2xl overflow-hidden border-2 border-white/20 shadow-2xl z-10 bg-slate-950">
+                <video 
+                  ref={localVideoRef} 
+                  autoPlay 
+                  playsInline 
+                  muted 
+                  className={cn("w-full h-full object-cover", isVideoMuted && "hidden")}
+                />
+                {isVideoMuted && (
+                  <div className="w-full h-full flex flex-col items-center justify-center bg-slate-950 text-slate-500 text-[10px] font-bold">
+                    Camera Off
+                  </div>
+                )}
+              </div>
+
+              {/* Header Info */}
+              <div className="w-full bg-gradient-to-b from-black/80 to-transparent p-6 z-10 flex justify-between items-start">
+                <div>
+                  <h3 className="font-extrabold text-white text-lg drop-shadow-md">{partnerName}</h3>
+                  <Badge className="bg-emerald-500/20 text-emerald-400 font-bold uppercase tracking-wider text-[9px] border border-emerald-500/20">
+                    Live Call Secured
+                  </Badge>
+                </div>
+              </div>
+
+              {/* Floating Action Controls */}
+              <div className="w-full bg-gradient-to-t from-black/80 via-black/40 to-transparent p-8 z-10 flex justify-center items-center gap-4">
+                <Button 
+                  onClick={toggleAudio}
+                  variant="ghost" 
+                  className={cn(
+                    "w-12 h-12 rounded-full flex items-center justify-center border transition-all text-white",
+                    isAudioMuted 
+                      ? "bg-rose-500 hover:bg-rose-600 border-rose-500" 
+                      : "bg-white/10 hover:bg-white/20 border-white/10"
+                  )}
+                >
+                  {isAudioMuted ? <Mic className="w-5 h-5 opacity-50" /> : <Mic className="w-5 h-5" />}
+                </Button>
+
+                <Button 
+                  onClick={endCall} 
+                  className="bg-rose-500 hover:bg-rose-600 text-white rounded-full w-14 h-14 flex items-center justify-center shadow-lg shadow-rose-500/30 transition-all hover:scale-105"
+                >
+                  <Phone className="w-6 h-6 rotate-[135deg]" />
+                </Button>
+
+                <Button 
+                  onClick={toggleVideo}
+                  variant="ghost" 
+                  className={cn(
+                    "w-12 h-12 rounded-full flex items-center justify-center border transition-all text-white",
+                    isVideoMuted 
+                      ? "bg-rose-500 hover:bg-rose-600 border-rose-500" 
+                      : "bg-white/10 hover:bg-white/20 border-white/10"
+                  )}
+                >
+                  {isVideoMuted ? <Video className="w-5 h-5 opacity-50" /> : <Video className="w-5 h-5" />}
+                </Button>
+              </div>
+
+            </div>
+          )}
+
+        </div>
+      )}
     </div>
   );
 }

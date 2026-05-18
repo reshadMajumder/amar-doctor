@@ -63,6 +63,8 @@ class ChatConsumer(AsyncWebsocketConsumer):
                 await self.handle_lifecycle('start')
             elif event_type == 'consultation.end':
                 await self.handle_lifecycle('end')
+            elif event_type == 'call.signal':
+                await self.handle_call_signal(payload)
 
         except Exception as e:
             await self.send(text_data=json.dumps({
@@ -138,6 +140,16 @@ class ChatConsumer(AsyncWebsocketConsumer):
             }
         )
 
+    async def handle_call_signal(self, payload):
+        await self.channel_layer.group_send(
+            self.room_group_name,
+            {
+                'type': 'call_signal_broadcast',
+                'user_id': self.user.id,
+                'signal': payload.get('signal')
+            }
+        )
+
     # Broadcast handlers
     async def chat_message_broadcast(self, event):
         await self.send(text_data=json.dumps({
@@ -169,6 +181,16 @@ class ChatConsumer(AsyncWebsocketConsumer):
         await self.send(text_data=json.dumps({
             'event': event['event']
         }))
+
+    async def call_signal_broadcast(self, event):
+        if event['user_id'] != self.user.id:
+            await self.send(text_data=json.dumps({
+                'event': 'call.signal',
+                'data': {
+                    'user_id': event['user_id'],
+                    'signal': event['signal']
+                }
+            }))
 
     # Database sync methods
     @database_sync_to_async
