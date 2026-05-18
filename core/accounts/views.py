@@ -200,35 +200,52 @@ class DoctorListView(APIView):
     permission_classes = [AllowAny]
 
     def get(self, request):
-        from django.db.models import Q
-        queryset = DoctorProfile.objects.filter(verification_status='approved')
-        if not queryset.exists():
-            # Dev/sandbox fallback to display profiles
-            queryset = DoctorProfile.objects.all()
+        from django.core.cache import cache
+        import hashlib
 
         specialization = request.query_params.get('specialization')
         search = request.query_params.get('search')
         doctor_id = request.query_params.get('doctor_id')
 
-        if doctor_id:
-            queryset = queryset.filter(user_id=doctor_id)
-        if specialization:
-            spec_clean = specialization.lower().strip()
-            if spec_clean in ['er', 'emergency', 'emergency room', 'icu', 'ccu']:
-                # Map urgent/ER cases to General Physician gates in a virtual setting
-                queryset = queryset.filter(specialization__icontains='General Physician')
-            elif len(specialization) <= 2:
-                queryset = queryset.filter(specialization__iexact=specialization)
-            else:
-                queryset = queryset.filter(specialization__icontains=specialization)
-        if search:
-            queryset = queryset.filter(
-                Q(user__full_name__icontains=search) |
-                Q(specialization__icontains=search)
-            )
+        # Generate a unique cache key based on query parameters
+        params_str = f"spec:{specialization or ''}|search:{search or ''}|doc_id:{doctor_id or ''}"
+        params_hash = hashlib.md5(params_str.encode('utf-8')).hexdigest()
+        cache_key = f"doctor_list:{params_hash}"
 
-        serializer = DoctorProfileSerializer(queryset, many=True)
-        return Response(success_response(data=serializer.data), status=status.HTTP_200_OK)
+        # Fetch cached doctor list if available
+        doctors_data = cache.get(cache_key)
+        
+        if doctors_data is None:
+            from django.db.models import Q
+            queryset = DoctorProfile.objects.filter(verification_status='approved')
+            if not queryset.exists():
+                # Dev/sandbox fallback to display profiles
+                queryset = DoctorProfile.objects.all()
+
+            if doctor_id:
+                queryset = queryset.filter(user_id=doctor_id)
+            if specialization:
+                spec_clean = specialization.lower().strip()
+                if spec_clean in ['er', 'emergency', 'emergency room', 'icu', 'ccu']:
+                    # Map urgent/ER cases to General Physician gates in a virtual setting
+                    queryset = queryset.filter(specialization__icontains='General Physician')
+                elif len(specialization) <= 2:
+                    queryset = queryset.filter(specialization__iexact=specialization)
+                else:
+                    queryset = queryset.filter(specialization__icontains=specialization)
+            if search:
+                queryset = queryset.filter(
+                    Q(user__full_name__icontains=search) |
+                    Q(specialization__icontains=search)
+                )
+
+            serializer = DoctorProfileSerializer(queryset, many=True)
+            doctors_data = serializer.data
+            
+            # Cache the serialized result for 5 minutes (300 seconds)
+            cache.set(cache_key, doctors_data, timeout=300)
+
+        return Response(success_response(data=doctors_data), status=status.HTTP_200_OK)
 
 
 class SpecializationListView(APIView):

@@ -41,7 +41,7 @@ class RoomService:
         
         # Update appointment status via AppointmentService
         from appointments.services.appointment_service import AppointmentService
-        AppointmentService.update_status(room.appointment, 'in_progress')
+        AppointmentService.update_status(room.appointment, 'in_progress', room.doctor)
         
         return room
 
@@ -60,6 +60,6 @@ class RoomService:
         
         # Update appointment status via AppointmentService
         from appointments.services.appointment_service import AppointmentService
-        AppointmentService.update_status(room.appointment, 'completed')
+        AppointmentService.update_status(room.appointment, 'completed', room.doctor)
         
         return room

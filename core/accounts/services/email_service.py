@@ -65,6 +65,7 @@ class ResendEmailProvider(EmailProvider):
                 "html": html_content,
             }
             resend.Emails.send(params)
+            print(f"Resend email sent to {to_email} with subject '{subject}'")
             return True
         except Exception as e:
             logging.getLogger(__name__).error("Resend SDK error for %s: %s", to_email, e)

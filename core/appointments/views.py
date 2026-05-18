@@ -120,5 +120,60 @@ class AppointmentViewSet(viewsets.ModelViewSet):
             return Response(self.get_serializer(appointment).data)
         except Exception as e:
             return Response({"error": str(e)}, status=status.HTTP_400_BAD_REQUEST)
+
+    @action(detail=True, methods=['patch'])
+    def start_session(self, request, pk=None):
+        appointment = self.get_object()
+        if request.user != appointment.doctor and request.user != appointment.patient:
+            return Response({"error": "Only assigned doctor or patient can start the session"}, status=status.HTTP_403_FORBIDDEN)
+            
+        try:
+            if appointment.status == 'doctor_approved':
+                AppointmentService.update_status(appointment, 'confirmed', request.user)
+            
+            from chat.models import ChatRoom
+            from chat.services.room_service import RoomService
+            
+            room, created = ChatRoom.objects.get_or_create(
+                appointment=appointment,
+                defaults={
+                    'patient': appointment.patient,
+                    'doctor': appointment.doctor,
+                    'status': ChatRoom.STATUS_WAITING
+                }
+            )
+            
+            RoomService.start_consultation(room)
+            
+            serializer = self.get_serializer(appointment)
+            return Response({
+                "message": "Session started successfully",
+                "room_id": room.id,
+                "appointment": serializer.data
+            })
+        except Exception as e:
+            return Response({"error": str(e)}, status=status.HTTP_400_BAD_REQUEST)
+
+    @action(detail=True, methods=['patch'])
+    def complete_session(self, request, pk=None):
+        appointment = self.get_object()
+        if request.user != appointment.doctor:
+            return Response({"error": "Only the assigned doctor can complete the session"}, status=status.HTTP_403_FORBIDDEN)
+            
+        try:
+            from chat.models import ChatRoom
+            from chat.services.room_service import RoomService
+            
+            room = get_object_or_404(ChatRoom, appointment=appointment)
+            RoomService.end_consultation(room)
+            
+            serializer = self.get_serializer(appointment)
+            return Response({
+                "message": "Session completed successfully",
+                "room_id": room.id,
+                "appointment": serializer.data
+            })
+        except Exception as e:
+            return Response({"error": str(e)}, status=status.HTTP_400_BAD_REQUEST)
     
     # Add other actions (reject, start, complete) similarly

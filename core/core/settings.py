@@ -21,9 +21,7 @@ BASE_DIR = Path(__file__).resolve().parent.parent.parent
 # Keep a shared .env file working for local development, then allow env-specific
 # files to override it when present.
 ENVIRONMENT = os.getenv('ENVIRONMENT', 'dev').lower()
-load_dotenv(BASE_DIR / '.env')
 load_dotenv(BASE_DIR / 'core' / '.env')
-load_dotenv(BASE_DIR / f'.env.{ENVIRONMENT}', override=True)
 load_dotenv(BASE_DIR / 'core' / f'.env.{ENVIRONMENT}', override=True)
 
 
@@ -116,29 +114,29 @@ CHANNEL_LAYERS = {
 # Database
 # https://docs.djangoproject.com/en/6.0/ref/settings/#databases
 
-# DATABASES = {
-#     'default': {
-#         'ENGINE': 'django.db.backends.postgresql',
-#         'NAME': os.getenv('DB_NAME', 'amardoctor'),
-#         'USER': os.getenv('DB_USER', 'postgres'),
-#         'PASSWORD': os.getenv('DB_PASSWORD', 'postgres'),
-#         'HOST': os.getenv('DB_HOST', '127.0.0.1'),
-#         'PORT': os.getenv('DB_PORT', '5432'),
-#     }
-# }
 DATABASES = {
     'default': {
         'ENGINE': 'django.db.backends.postgresql',
-        'NAME': 'neondb',
-        'USER': 'neondb_owner',
-        'PASSWORD': 'npg_RvJbhX4l8ETC',
-        'HOST': 'ep-dawn-flower-apn0427b-pooler.c-7.us-east-1.aws.neon.tech',
-        'PORT': '5432',
-        'OPTIONS': {
-            'sslmode': 'require',
-        },
+        'NAME': os.getenv('DB_NAME', 'amardoctor'),
+        'USER': os.getenv('DB_USER', 'postgres'),
+        'PASSWORD': os.getenv('DB_PASSWORD', 'postgres'),
+        'HOST': os.getenv('DB_HOST', '127.0.0.1'),
+        'PORT': os.getenv('DB_PORT', '5432'),
     }
 }
+# DATABASES = {
+#     'default': {
+#         'ENGINE': 'django.db.backends.postgresql',
+#         'NAME': 'neondb',
+#         'USER': 'neondb_owner',
+#         'PASSWORD': 'npg_RvJbhX4l8ETC',
+#         'HOST': 'ep-dawn-flower-apn0427b-pooler.c-7.us-east-1.aws.neon.tech',
+#         'PORT': '5432',
+#         'OPTIONS': {
+#             'sslmode': 'require',
+#         },
+#     }
+# }
 
 
 # Password validation
