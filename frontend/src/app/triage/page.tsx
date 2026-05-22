@@ -84,7 +84,10 @@ export default function TriagePage() {
         // Use window.location to derive WS URL dynamically so it always routes
         // through the correct host (Nginx in production), regardless of env vars.
         const wsProtocol = window.location.protocol === "https:" ? "wss:" : "ws:";
-        const wsHost = window.location.host;
+        let wsHost = window.location.host;
+        if (wsHost === "localhost:9002" || wsHost === "127.0.0.1:9002") {
+          wsHost = "localhost:8000";
+        }
         const freshToken = getAccessToken() || token;
         const socketUrl = `${wsProtocol}//${wsHost}/ws/triage/${session.id}/?token=${freshToken}`;
 
