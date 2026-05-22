@@ -7,6 +7,15 @@ def clear_doctor_caches():
     """
     Helper function to invalidate all doctor list and specialization caches.
     """
+    # Invalidate all doctor list query caches
+    if hasattr(cache, 'delete_pattern'):
+        try:
+            cache.delete_pattern("doctor_list:*")
+        except Exception:
+            cache.clear()
+    else:
+        cache.clear()
+    
     # Invalidate doctor specializations cache
     cache.delete('doctor_specializations')
 
