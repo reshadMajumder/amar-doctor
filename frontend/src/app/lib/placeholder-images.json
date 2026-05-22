@@ -1,0 +1,35 @@
+
+{
+  "placeholderImages": [
+    {
+      "id": "hero-mobile",
+      "description": "Mobile mockup of telemedicine app",
+      "imageUrl": "https://picsum.photos/seed/12/600/1200",
+      "imageHint": "mobile app telemedicine"
+    },
+    {
+      "id": "doctor-1",
+      "description": "Professional female doctor",
+      "imageUrl": "https://picsum.photos/seed/doc1/400/400",
+      "imageHint": "doctor female"
+    },
+    {
+      "id": "doctor-2",
+      "description": "Professional male doctor",
+      "imageUrl": "https://picsum.photos/seed/doc2/400/400",
+      "imageHint": "doctor male"
+    },
+    {
+      "id": "doctor-3",
+      "description": "Professional doctor in clinic",
+      "imageUrl": "https://picsum.photos/seed/doc3/400/400",
+      "imageHint": "doctor clinic"
+    },
+    {
+      "id": "triage-illustration",
+      "description": "AI medical interaction illustration",
+      "imageUrl": "https://picsum.photos/seed/triage/800/600",
+      "imageHint": "medical illustration"
+    }
+  ]
+}
