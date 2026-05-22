@@ -15,14 +15,14 @@ from pathlib import Path
 from dotenv import load_dotenv
 
 # Build paths inside the project like this: BASE_DIR / 'subdir'.
-BASE_DIR = Path(__file__).resolve().parent.parent.parent
+BASE_DIR = Path(__file__).resolve().parent.parent
 
 # Determine environment and load environment files.
 # Keep a shared .env file working for local development, then allow env-specific
 # files to override it when present.
 ENVIRONMENT = os.getenv('ENVIRONMENT', 'dev').lower()
-load_dotenv(BASE_DIR / 'core' / '.env')
-load_dotenv(BASE_DIR / 'core' / f'.env.{ENVIRONMENT}', override=True)
+load_dotenv(BASE_DIR / '.env')
+load_dotenv(BASE_DIR / f'.env.{ENVIRONMENT}', override=True)
 
 
 # Quick-start development settings - unsuitable for production
