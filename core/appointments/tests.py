@@ -117,6 +117,74 @@ class TestAppointmentWorkflow:
         
         assert appointment.status == 'completed'
 
+    def test_update_status_completed_without_prescription_fails(self, setup_data):
+        from unittest.mock import patch
+        from appointments.services.appointment_service import AppointmentService
+        doctor, patient = setup_data
+        appointment = Appointment.objects.create(
+            patient=patient,
+            doctor=doctor,
+            scheduled_start=timezone.now(),
+            scheduled_end=timezone.now() + timedelta(minutes=30),
+            status='in_progress',
+            consultation_fee=500
+        )
+        with patch('appointments.events.appointment_events.AppointmentEvents.dispatch'):
+            with pytest.raises(ValueError, match="Cannot complete appointment without a prescription"):
+                AppointmentService.update_status(appointment, 'completed', doctor)
+
+    def test_update_status_completed_with_no_prescription_required_succeeds(self, setup_data):
+        from unittest.mock import patch
+        from appointments.services.appointment_service import AppointmentService
+        from payments.services.escrow_service import EscrowService
+        doctor, patient = setup_data
+        appointment = Appointment.objects.create(
+            patient=patient,
+            doctor=doctor,
+            scheduled_start=timezone.now(),
+            scheduled_end=timezone.now() + timedelta(minutes=30),
+            status='in_progress',
+            consultation_fee=500,
+            no_prescription_required=True
+        )
+        # Setup escrow payment
+        EscrowService.hold_payment(appointment, 'tx_123', 'val_123')
+        
+        with patch('appointments.events.appointment_events.AppointmentEvents.dispatch'):
+            AppointmentService.update_status(appointment, 'completed', doctor)
+        
+        appointment.refresh_from_db()
+        assert appointment.status == 'completed'
+
+    def test_update_status_completed_with_prescription_succeeds(self, setup_data):
+        from unittest.mock import patch
+        from appointments.services.appointment_service import AppointmentService
+        from prescriptions.models import Prescription
+        from payments.services.escrow_service import EscrowService
+        doctor, patient = setup_data
+        appointment = Appointment.objects.create(
+            patient=patient,
+            doctor=doctor,
+            scheduled_start=timezone.now(),
+            scheduled_end=timezone.now() + timedelta(minutes=30),
+            status='in_progress',
+            consultation_fee=500
+        )
+        Prescription.objects.create(
+            appointment=appointment,
+            patient=patient,
+            doctor=doctor
+        )
+        # Setup escrow payment
+        EscrowService.hold_payment(appointment, 'tx_123', 'val_123')
+        
+        with patch('appointments.events.appointment_events.AppointmentEvents.dispatch'):
+            AppointmentService.update_status(appointment, 'completed', doctor)
+        
+        appointment.refresh_from_db()
+        assert appointment.status == 'completed'
+
+
 from rest_framework.test import APIClient
 from rest_framework import status
 from django.urls import reverse
@@ -176,3 +244,37 @@ class TestAppointmentAPI:
         assert response.data[0]['start'] is not None
         assert response.data[0]['end'] is not None
         assert response.data[0]['timezone'] == 'UTC'
+
+    def test_doctor_can_patch_no_prescription_required(self, api_client, setup_users):
+        doctor, patient = setup_users
+        appointment = Appointment.objects.create(
+            patient=patient,
+            doctor=doctor,
+            scheduled_start=timezone.now(),
+            scheduled_end=timezone.now() + timedelta(minutes=30),
+            status='pending',
+            consultation_fee=500
+        )
+        api_client.force_authenticate(user=doctor)
+        url = reverse('appointment-detail', kwargs={'pk': appointment.id})
+        response = api_client.patch(url, {'no_prescription_required': True})
+        assert response.status_code == status.HTTP_200_OK
+        appointment.refresh_from_db()
+        assert appointment.no_prescription_required is True
+
+    def test_patient_cannot_patch_no_prescription_required(self, api_client, setup_users):
+        doctor, patient = setup_users
+        appointment = Appointment.objects.create(
+            patient=patient,
+            doctor=doctor,
+            scheduled_start=timezone.now(),
+            scheduled_end=timezone.now() + timedelta(minutes=30),
+            status='pending',
+            consultation_fee=500
+        )
+        api_client.force_authenticate(user=patient)
+        url = reverse('appointment-detail', kwargs={'pk': appointment.id})
+        response = api_client.patch(url, {'no_prescription_required': True})
+        assert response.status_code == status.HTTP_400_BAD_REQUEST
+        assert 'no_prescription_required' in response.data
+

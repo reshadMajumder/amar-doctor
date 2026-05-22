@@ -13,6 +13,16 @@ import {
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+  DialogDescription,
+  DialogFooter,
+} from "@/components/ui/dialog";
+import { Switch } from "@/components/ui/switch";
+import { Label } from "@/components/ui/label";
 import { api, getAccessToken } from "@/lib/api";
 import { useAuth } from "@/hooks/useAuth";
 import { cn } from "@/lib/utils";
@@ -48,6 +58,8 @@ type RoomDetails = {
     notes: string;
     consultation_fee: string;
     scheduled_start: string;
+    has_prescription?: boolean;
+    no_prescription_required?: boolean;
     ai_report_details?: {
       id: number;
       ai_summary: string;
@@ -450,26 +462,56 @@ export default function ChatRoomPage() {
     }
   }
 
-  async function handleCompleteSession() {
-    if (!room || !confirm("Are you sure you want to end this consultation? This will release the escrow payment to your wallet.")) return;
+  const [isEndSessionDialogOpen, setIsEndSessionDialogOpen] = useState(false);
+  const [noPrescriptionToggle, setNoPrescriptionToggle] = useState(false);
+
+  const handleOpenEndSessionDialog = () => {
+    if (!room) return;
+    setNoPrescriptionToggle(!!room.appointment.no_prescription_required);
+    setIsEndSessionDialogOpen(true);
+  };
+
+  async function confirmCompleteSession() {
+    if (!room) return;
 
     try {
       setActionInProgress(true);
-      // Emit websocket lifecycle change
+
+      // 1. If noPrescriptionToggle differs from backend, save it first
+      if (noPrescriptionToggle !== room.appointment.no_prescription_required) {
+        await api.patch(`/api/v1/appointments/${room.appointment.id}/`, {
+          no_prescription_required: noPrescriptionToggle
+        });
+        
+        // Optimistically update local room details in state so they are in sync
+        setRoom(prev => {
+          if (!prev) return null;
+          return {
+            ...prev,
+            appointment: {
+              ...prev.appointment,
+              no_prescription_required: noPrescriptionToggle
+            }
+          };
+        });
+      }
+
+      // 2. Emit websocket lifecycle change
       if (socketRef.current && connectionStatus === "connected") {
         socketRef.current.send(JSON.stringify({
           event: "consultation.end"
         }));
       }
 
-      // Transition DB record to completed
+      // 3. Transition DB record to completed
       await api.patch(`/api/v1/appointments/${room.appointment.id}/complete_session/`);
       
       alert("Consultation completed successfully! Funds have been released to your wallet.");
+      setIsEndSessionDialogOpen(false);
       router.push("/dashboard");
     } catch (err: any) {
       console.error("Failed to complete session", err);
-      alert(err.message || "Failed to complete consultation.");
+      alert(err.raw?.error || err.message || "Failed to complete consultation.");
     } finally {
       setActionInProgress(false);
     }
@@ -580,7 +622,7 @@ export default function ChatRoomPage() {
 
           {isDoctor && room.status !== "ended" && (
             <Button 
-              onClick={handleCompleteSession}
+              onClick={handleOpenEndSessionDialog}
               disabled={actionInProgress}
               className="bg-rose-500 hover:bg-rose-600 text-white font-bold text-xs rounded-xl h-10 px-3 md:px-4 gap-1.5 shadow-md shadow-rose-500/10"
             >
@@ -1116,6 +1158,120 @@ export default function ChatRoomPage() {
 
         </div>
       )}
+
+      {/* End Consultation Dialog */}
+      <Dialog open={isEndSessionDialogOpen} onOpenChange={setIsEndSessionDialogOpen}>
+        <DialogContent className="sm:max-w-[480px] rounded-[2.2rem] border-none bg-white p-6 md:p-8 shadow-2xl font-sans overflow-hidden">
+          {room.appointment.has_prescription ? (
+            <div className="space-y-6">
+              <div className="flex flex-col items-center text-center space-y-4">
+                <div className="w-16 h-16 rounded-full bg-emerald-50 border border-emerald-100 flex items-center justify-center text-emerald-500 shadow-sm">
+                  <Check className="w-8 h-8" />
+                </div>
+                <div className="space-y-1.5">
+                  <DialogTitle className="text-xl font-black text-slate-900 tracking-tight">End Consultation Session</DialogTitle>
+                  <DialogDescription className="text-xs text-slate-500 font-semibold max-w-sm">
+                    A finalized prescription is already attached to this consultation.
+                  </DialogDescription>
+                </div>
+              </div>
+
+              <div className="bg-slate-50 border border-slate-100 rounded-2.5xl p-4 text-xs text-slate-600 font-semibold leading-relaxed">
+                Ending this consultation will officially close the chat room and release the escrow payment of <span className="font-extrabold text-slate-900">${room.appointment.consultation_fee}</span> to your wallet.
+              </div>
+
+              <DialogFooter className="flex flex-col sm:flex-row gap-2.5 pt-2">
+                <Button 
+                  variant="outline" 
+                  onClick={() => setIsEndSessionDialogOpen(false)} 
+                  className="rounded-2xl h-12 text-xs font-bold border-slate-200 text-slate-600 hover:bg-slate-50"
+                >
+                  Cancel
+                </Button>
+                <Button 
+                  onClick={confirmCompleteSession}
+                  disabled={actionInProgress}
+                  className="bg-emerald-500 hover:bg-emerald-600 text-white font-bold text-xs rounded-2xl h-12 px-6 shadow-lg shadow-emerald-500/10 gap-1.5"
+                >
+                  {actionInProgress ? (
+                    <Loader2 className="w-4 h-4 animate-spin" />
+                  ) : (
+                    <Check className="w-4 h-4" />
+                  )}
+                  Complete Consultation
+                </Button>
+              </DialogFooter>
+            </div>
+          ) : (
+            <div className="space-y-6">
+              <div className="flex flex-col items-center text-center space-y-4">
+                <div className="w-16 h-16 rounded-full bg-amber-50 border border-amber-100 flex items-center justify-center text-amber-500 shadow-sm animate-pulse">
+                  <AlertCircle className="w-8 h-8" />
+                </div>
+                <div className="space-y-1.5">
+                  <DialogTitle className="text-xl font-black text-slate-900 tracking-tight">Prescription Status Warning</DialogTitle>
+                  <DialogDescription className="text-xs text-slate-500 font-semibold max-w-sm">
+                    No prescription is currently created for <span className="font-extrabold text-slate-800">{room.patient.full_name}</span>.
+                  </DialogDescription>
+                </div>
+              </div>
+
+              <div className="bg-amber-50/50 border border-amber-100/50 rounded-2.5xl p-4 text-xs text-amber-800 leading-relaxed font-medium">
+                Medical compliance guidelines require a prescription to complete consultations. If clinical guidance or medication is needed, please write an E-Prescription now.
+              </div>
+
+              <div className="flex items-center justify-between p-4 bg-slate-50 border border-slate-100 rounded-2.5xl">
+                <div className="space-y-1 pr-4">
+                  <Label htmlFor="no-prescription-switch" className="text-xs font-extrabold text-slate-800 cursor-pointer select-none">
+                    No Prescription Needed
+                  </Label>
+                  <p className="text-[10px] text-slate-400 font-semibold leading-normal">
+                    Manually bypass the prescription check for this consultation.
+                  </p>
+                </div>
+                <Switch 
+                  id="no-prescription-switch" 
+                  checked={noPrescriptionToggle} 
+                  onCheckedChange={setNoPrescriptionToggle}
+                />
+              </div>
+
+              <DialogFooter className="flex flex-col sm:flex-row gap-2.5 pt-2">
+                <Button 
+                  variant="outline" 
+                  onClick={() => setIsEndSessionDialogOpen(false)} 
+                  className="rounded-2xl h-12 text-xs font-bold border-slate-200 text-slate-600 hover:bg-slate-50"
+                >
+                  Cancel
+                </Button>
+                {noPrescriptionToggle ? (
+                  <Button 
+                    onClick={confirmCompleteSession}
+                    disabled={actionInProgress}
+                    className="bg-emerald-500 hover:bg-emerald-600 text-white font-bold text-xs rounded-2xl h-12 px-6 shadow-lg shadow-emerald-500/10 gap-1.5"
+                  >
+                    {actionInProgress ? (
+                      <Loader2 className="w-4 h-4 animate-spin" />
+                    ) : (
+                      <Check className="w-4 h-4" />
+                    )}
+                    Complete Consultation
+                  </Button>
+                ) : (
+                  <Link href={`/prescriptions/new?appt=${room.appointment.id}`} className="w-full sm:w-auto">
+                    <Button 
+                      className="w-full bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-700 hover:to-indigo-700 text-white font-bold text-xs rounded-2xl h-12 px-6 shadow-lg shadow-blue-500/10 gap-1.5"
+                    >
+                      <FileText className="w-4 h-4" />
+                      Write E-Prescription
+                    </Button>
+                  </Link>
+                )}
+              </DialogFooter>
+            </div>
+          )}
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }

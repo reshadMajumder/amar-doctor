@@ -21,6 +21,12 @@ class AppointmentService:
         if new_status == 'doctor_approved' and appointment.payment_status == 'unpaid':
             raise ValueError("Appointment must be paid before doctor can approve it.")
 
+        # Enforce prescription requirement before completion
+        if new_status == 'completed':
+            has_prescription = hasattr(appointment, 'prescription')
+            if not (has_prescription or appointment.no_prescription_required):
+                raise ValueError("Cannot complete appointment without a prescription unless marked as not required.")
+
         appointment.status = new_status
         appointment.save()
 

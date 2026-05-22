@@ -30,6 +30,7 @@ type AppointmentDetails = {
   doctor_name: string;
   scheduled_start: string;
   notes: string;
+  chat_room_id?: number | null;
   ai_report_details?: {
     risk_category: string;
     ai_summary: string;
@@ -73,13 +74,13 @@ function PrescriptionNewForm() {
         setLoading(true);
         // 1. Fetch appointment details to get patient identity
         const apptRes = await api.get(`/api/v1/appointments/${apptId}/`);
-        setAppointment(apptRes.data);
+        setAppointment(apptRes);
 
         // 2. Initialize or fetch existing draft prescription
         const presRes = await api.post("/api/v1/prescriptions/", {
           appointment_id: Number(apptId)
         });
-        const presData = presRes.data;
+        const presData = presRes;
         
         setPrescriptionId(presData.id);
         setDiagnosisNotes(presData.diagnosis_notes || "");
@@ -112,7 +113,7 @@ function PrescriptionNewForm() {
       };
 
       const res = await api.post(`/api/v1/prescriptions/${prescriptionId}/items/`, payload);
-      setItems((prev) => [...prev, res.data]);
+      setItems((prev) => [...prev, res]);
 
       // Reset item inputs
       setMedName("");
@@ -142,10 +143,14 @@ function PrescriptionNewForm() {
       await api.post(`/api/v1/prescriptions/${prescriptionId}/finalize/`);
 
       alert("E-Prescription has been finalized successfully! The patient has been notified.");
-      router.push("/dashboard");
+      if (appointment?.chat_room_id) {
+        router.push(`/chat/${appointment.chat_room_id}`);
+      } else {
+        router.push("/dashboard");
+      }
     } catch (err: any) {
       console.error("Failed to finalize prescription", err);
-      alert(err.response?.data?.error || "Failed to finalize prescription.");
+      alert(err.raw?.error || err.message || "Failed to finalize prescription.");
     } finally {
       setActionInProgress(false);
     }
@@ -182,11 +187,20 @@ function PrescriptionNewForm() {
         {/* Header navigation bar */}
         <header className="flex flex-col md:flex-row md:items-center justify-between gap-4">
           <div className="flex items-center gap-4">
-            <Link href="/dashboard">
-              <Button variant="outline" size="icon" className="rounded-full bg-white hover:bg-slate-50 shadow-sm">
-                <ArrowLeft className="w-5 h-5 text-slate-600" />
-              </Button>
-            </Link>
+            <Button 
+              variant="outline" 
+              size="icon" 
+              className="rounded-full bg-white hover:bg-slate-50 shadow-sm"
+              onClick={() => {
+                if (appointment?.chat_room_id) {
+                  router.push(`/chat/${appointment.chat_room_id}`);
+                } else {
+                  router.push("/dashboard");
+                }
+              }}
+            >
+              <ArrowLeft className="w-5 h-5 text-slate-600" />
+            </Button>
             <div>
               <h1 className="text-2xl font-black text-slate-900 tracking-tight">Prescription Creator</h1>
               <p className="text-sm text-slate-500">Formulating medical guidance for <span className="font-bold text-slate-800">{appointment.patient_name}</span></p>
