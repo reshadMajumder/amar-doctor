@@ -368,3 +368,43 @@ class TestEmailService:
         assert call_args['to'] == 'test@example.com'
         assert '123456' in call_args['html']
 
+
+@pytest.mark.django_db
+class TestDoctorListView:
+    def test_doctor_list_retrieval_direct_db_query(self, api_client):
+        # Create an approved doctor user
+        user = User.objects.create_user(
+            email='doc_list_test@test.com',
+            password='password123',
+            full_name='Dr. Direct List',
+            role='doctor',
+            is_verified=True
+        )
+        profile = DoctorProfile.objects.create(
+            user=user,
+            specialization='Neurology',
+            bmdc_number='A-11111',
+            consultation_fee=1000.00,
+            is_available=True,
+            verification_status='approved'
+        )
+
+        url = reverse('doctor_list')
+        response = api_client.get(url)
+        assert response.status_code == status.HTTP_200_OK
+        assert response.data['success'] is True
+        assert len(response.data['data']) == 1
+        assert response.data['data'][0]['specialization'] == 'Neurology'
+
+        # Now dynamically modify the profile directly in the DB
+        profile.specialization = 'Cardiology'
+        profile.save()
+
+        # Fetch again and verify that the specialization change is reflected immediately
+        # (which proves that caching is not returning stale 'Neurology' data)
+        response2 = api_client.get(url)
+        assert response2.status_code == status.HTTP_200_OK
+        assert len(response2.data['data']) == 1
+        assert response2.data['data'][0]['specialization'] == 'Cardiology'
+
+

@@ -12,7 +12,7 @@ import {
   Bell, ChevronRight, Activity, Plus, Wallet, 
   FileText, ShieldCheck, ArrowRight, Video,
   Clock, Loader2, Check, X, Users, DollarSign,
-  TrendingUp, Trash2
+  TrendingUp, Trash2, Phone
 } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from "@/components/ui/dialog";
@@ -307,19 +307,24 @@ export default function Dashboard() {
       historyAppointments;
 
     const totalRevenue = appointments
-      .filter(app => ['doctor_approved', 'confirmed', 'completed', 'in_progress'].includes(app.status))
+      .filter(app => ['paid_held', 'released'].includes(app.payment_status))
       .reduce((sum, app) => sum + parseFloat(app.consultation_fee || 0), 0);
 
     const liveTriageReports = appointments
-      .filter(app => app.status === 'pending' && app.ai_report)
-      .map(app => ({
-        id: String(app.id),
-        patient: app.patient_name || 'Anonymous Patient',
-        symptoms: app.notes || 'Intake completed, awaiting review.',
-        risk: 'High',
-        time: '5m',
-        ai_report: app.ai_report
-      }));
+      .filter(app => app.status === 'pending' && app.ai_report_details)
+      .map(app => {
+        const details = app.ai_report_details;
+        const riskVal = details?.risk_category || details?.severity_level || 'Low';
+        const formattedRisk = riskVal.charAt(0).toUpperCase() + riskVal.slice(1).toLowerCase();
+        return {
+          id: String(app.id),
+          patient: app.patient_name || 'Anonymous Patient',
+          symptoms: details?.ai_summary || app.notes || 'Intake completed, awaiting review.',
+          risk: formattedRisk,
+          time: '5m',
+          ai_report: app.ai_report
+        };
+      });
 
     const staticTriageReports: { id: string; patient: string; symptoms: string; risk: string; time: string; ai_report?: string }[] = [
       { id: 't1', patient: 'Rahima Khatun', symptoms: 'Severe headache spreading behind the eyes, onset 3 hours ago, accompanied by nausea.', risk: 'High', time: '10m', ai_report: undefined },
@@ -509,10 +514,12 @@ export default function Dashboard() {
                               "inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-[9px] font-bold uppercase",
                               app.consultation_type === 'video'
                                 ? "bg-purple-50 text-purple-600"
+                                : app.consultation_type === 'voice'
+                                ? "bg-amber-50 text-amber-600"
                                 : "bg-blue-50 text-blue-600"
                             )}>
-                              {app.consultation_type === 'video' ? <Video className="w-3 h-3" /> : <MessageSquare className="w-3 h-3" />}
-                              {app.consultation_type}
+                              {app.consultation_type === 'video' ? <Video className="w-3 h-3" /> : app.consultation_type === 'voice' ? <Phone className="w-3 h-3" /> : <MessageSquare className="w-3 h-3" />}
+                              {app.consultation_type === 'video' ? 'Video' : app.consultation_type === 'voice' ? 'Voice' : app.consultation_type === 'text' ? 'Text' : app.consultation_type}
                             </span>
                           </div>
 
@@ -520,9 +527,14 @@ export default function Dashboard() {
                             <div className="text-[9px] font-bold text-slate-400 uppercase tracking-wider">Payment</div>
                             <span className={cn(
                               "inline-flex px-2 py-0.5 rounded-full text-[9px] font-bold uppercase",
-                              app.payment_status === 'paid' ? "bg-emerald-50 text-emerald-600 animate-pulse" : "bg-rose-50 text-rose-600"
+                              ['paid_held', 'released'].includes(app.payment_status) ? "bg-emerald-50 text-emerald-600" : "bg-rose-50 text-rose-600"
                             )}>
-                              {app.payment_status}
+                              {app.payment_status === 'paid_held' ? 'Paid (Escrow)' :
+                               app.payment_status === 'released' ? 'Released' :
+                               app.payment_status === 'refunded' ? 'Refunded' :
+                               app.payment_status === 'disputed' ? 'Disputed' :
+                               app.payment_status === 'unpaid' ? 'Unpaid' :
+                               app.payment_status || 'Unpaid'}
                             </span>
                           </div>
                         </div>
@@ -617,10 +629,10 @@ export default function Dashboard() {
                           </Button>
                           <Button
                             onClick={() => handleApprove(app.id)}
-                            disabled={actionInProgress !== null}
+                            disabled={actionInProgress !== null || !['paid_held', 'released'].includes(app.payment_status)}
                             className={cn(
                               "h-9 rounded-lg font-bold text-[10px] gap-1.5 shadow-sm px-4",
-                              app.payment_status !== 'paid'
+                              !['paid_held', 'released'].includes(app.payment_status)
                                 ? "bg-slate-100 text-slate-400 shadow-none border-none cursor-not-allowed"
                                 : "bg-emerald-500 hover:bg-emerald-600 text-white shadow-emerald-500/10"
                             )}
@@ -630,7 +642,7 @@ export default function Dashboard() {
                             ) : (
                               <Check className="w-3 h-3" />
                             )}
-                            {app.payment_status !== 'paid' ? "Awaiting Payment" : "Approve & Schedule"}
+                            {!['paid_held', 'released'].includes(app.payment_status) ? "Awaiting Payment" : "Approve & Schedule"}
                           </Button>
                         </div>
                       )}
@@ -1011,7 +1023,12 @@ export default function Dashboard() {
                           {app.doctor_name || "Doctor Practitioner"}
                         </div>
                         <div className="text-[10px] md:text-sm text-slate-400 font-medium truncate">
-                          {formatDateTime(app.scheduled_start)} • {app.consultation_type?.toUpperCase() || 'TEXT'}
+                          {formatDateTime(app.scheduled_start)} • {
+                            app.consultation_type === 'video' ? 'Video' :
+                            app.consultation_type === 'voice' ? 'Voice' :
+                            app.consultation_type === 'text' ? 'Text' :
+                            app.consultation_type?.toUpperCase() || 'TEXT'
+                          }
                         </div>
                       </div>
                     </div>
