@@ -176,6 +176,28 @@ services:
         max-size: "10m"
         max-file: "3"
 
+  # Next.js Frontend
+  frontend:
+    build:
+      context: ./frontend
+      dockerfile: Dockerfile
+    container_name: amardoctor_frontend_prod
+    restart: always
+    environment:
+      - NODE_ENV=production
+      - NEXT_PUBLIC_API_URL=https://amardoc.reshad.dev
+    expose:
+      - "3000"
+    networks:
+      - amardoctor_network
+    depends_on:
+      - app
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "10m"
+        max-file: "3"
+
   # Nginx Reverse Proxy
   nginx:
     image: nginx:alpine
@@ -191,6 +213,7 @@ services:
       - "443:443"
     depends_on:
       - app
+      - frontend
     networks:
       - amardoctor_network
     logging:

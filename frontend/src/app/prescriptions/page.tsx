@@ -11,7 +11,7 @@ import {
   Stethoscope, ChevronRight, Loader2,
   ShieldAlert
 } from "lucide-react";
-import { api, getAccessToken } from "@/lib/api";
+import { api, getAccessToken, API_BASE_URL } from "@/lib/api";
 import { useAuth } from "@/hooks/useAuth";
 import { cn } from "@/lib/utils";
 
@@ -77,7 +77,8 @@ export default function PrescriptionsPage() {
     try {
       setDownloadingId(presId);
       const token = getAccessToken();
-      const res = await fetch(`http://localhost:8000/api/v1/prescriptions/${presId}/pdf/`, {
+      const cleanBase = API_BASE_URL.endsWith('/') ? API_BASE_URL.slice(0, -1) : API_BASE_URL;
+      const res = await fetch(`${cleanBase}/api/v1/prescriptions/${presId}/pdf/`, {
         headers: {
           'Authorization': `Bearer ${token}`
         }

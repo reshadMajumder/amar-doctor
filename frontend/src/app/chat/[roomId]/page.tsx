@@ -322,8 +322,13 @@ export default function ChatRoomPage() {
     }
 
     const wsScheme = window.location.protocol === "https:" ? "wss:" : "ws:";
-    // Fallback/standard host targeting port 8000
-    const wsUrl = `${wsScheme}//localhost:8000/ws/chat/${roomId}/?token=${token}`;
+    let wsHost = window.location.host;
+    // Fallback support for direct Next.js development server on port 9002
+    if (wsHost === "localhost:9002" || wsHost === "127.0.0.1:9002") {
+      wsHost = "localhost:8000";
+    }
+    const wsUrl = `${wsScheme}//${wsHost}/ws/chat/${roomId}/?token=${token}`;
+
 
     setConnectionStatus("connecting");
     const socket = new WebSocket(wsUrl);
