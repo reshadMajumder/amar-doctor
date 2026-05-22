@@ -12,9 +12,10 @@ import {
   Bell, ChevronRight, Activity, Plus, Wallet, 
   FileText, ShieldCheck, ArrowRight, Video,
   Clock, Loader2, Check, X, Users, DollarSign,
-  TrendingUp
+  TrendingUp, Trash2
 } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from "@/components/ui/dialog";
 import { api } from "@/lib/api";
 import { cn } from "@/lib/utils";
 import { useAuth } from "@/hooks/useAuth";
@@ -25,6 +26,91 @@ export default function Dashboard() {
   const [hasReport, setHasReport] = useState(false);
 
   const [doctors, setDoctors] = useState<any[]>([]);
+
+  // Availability management states
+  const [isAvailabilityOpen, setIsAvailabilityOpen] = useState(false);
+  const [availabilities, setAvailabilities] = useState<any[]>([]);
+  const [loadingAvailabilities, setLoadingAvailabilities] = useState(false);
+  const [isSavingAvailability, setIsSavingAvailability] = useState(false);
+
+  // Form states
+  const [newWeekday, setNewWeekday] = useState<number>(0);
+  const [newStartTime, setNewStartTime] = useState<string>("09:00");
+  const [newEndTime, setNewEndTime] = useState<string>("17:00");
+  const [newSlotDuration, setNewSlotDuration] = useState<number>(30);
+  const [newBreakStartTime, setNewBreakStartTime] = useState<string>("");
+  const [newBreakEndTime, setNewBreakEndTime] = useState<string>("");
+
+  async function fetchAvailabilities() {
+    try {
+      setLoadingAvailabilities(true);
+      const res = await api.get("/api/v1/appointments/availability/");
+      setAvailabilities(res.data || res);
+    } catch (err) {
+      console.error("Failed to fetch availabilities", err);
+    } finally {
+      setLoadingAvailabilities(false);
+    }
+  }
+
+  async function handleAddAvailability(e: React.FormEvent) {
+    e.preventDefault();
+    try {
+      setIsSavingAvailability(true);
+      const formatTime = (t: string) => t ? `${t}:00` : null;
+      
+      const payload = {
+        weekday: Number(newWeekday),
+        start_time: formatTime(newStartTime),
+        end_time: formatTime(newEndTime),
+        slot_duration_minutes: Number(newSlotDuration),
+        break_start_time: formatTime(newBreakStartTime),
+        break_end_time: formatTime(newBreakEndTime),
+        timezone: "UTC"
+      };
+
+      await api.post("/api/v1/appointments/availability/", payload);
+      await fetchAvailabilities();
+      setNewBreakStartTime("");
+      setNewBreakEndTime("");
+      alert("Availability added successfully!");
+    } catch (err: any) {
+      console.error("Failed to add availability", err);
+      let errorMsg = "Failed to add availability. End time must be after start time and breaks must be within the availability range.";
+      if (err.response?.data) {
+        if (typeof err.response.data === "string") {
+          errorMsg = err.response.data;
+        } else if (err.response.data.non_field_errors) {
+          errorMsg = err.response.data.non_field_errors.join(" ");
+        } else if (typeof err.response.data === "object") {
+          errorMsg = Object.entries(err.response.data)
+            .map(([field, msgs]) => `${field}: ${Array.isArray(msgs) ? msgs.join(" ") : msgs}`)
+            .join(" | ");
+        }
+      }
+      alert(errorMsg);
+    } finally {
+      setIsSavingAvailability(false);
+    }
+  }
+
+  async function handleDeleteAvailability(id: number) {
+    if (!confirm("Are you sure you want to delete this availability rule?")) return;
+    try {
+      await api.delete(`/api/v1/appointments/availability/${id}/`);
+      setAvailabilities(prev => prev.filter(item => item.id !== id));
+      alert("Availability rule deleted successfully.");
+    } catch (err) {
+      console.error("Failed to delete availability", err);
+      alert("Failed to delete availability.");
+    }
+  }
+
+  useEffect(() => {
+    if (isAvailabilityOpen && user?.role === 'doctor') {
+      fetchAvailabilities();
+    }
+  }, [isAvailabilityOpen, user]);
 
   useEffect(() => {
     const report = localStorage.getItem("latest_report");
@@ -602,7 +688,13 @@ export default function Dashboard() {
                     <Button 
                       key={i} 
                       variant="ghost" 
-                      onClick={() => alert(`Clinical tool: ${tool.label} is currently integrated. (Available under certified practitioner license.)`)}
+                      onClick={() => {
+                        if (tool.label === 'Set Hours') {
+                          setIsAvailabilityOpen(true);
+                        } else {
+                          alert(`Clinical tool: ${tool.label} is currently integrated. (Available under certified practitioner license.)`);
+                        }
+                      }}
                       className="flex-col h-auto py-5 md:py-6 bg-white/5 hover:bg-white/10 rounded-2xl gap-2 border-none transition-all"
                     >
                       <tool.icon className={cn("w-6 h-6", tool.color)} />
@@ -617,6 +709,164 @@ export default function Dashboard() {
           </div>
 
         </div>
+
+        <Dialog open={isAvailabilityOpen} onOpenChange={setIsAvailabilityOpen}>
+          <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto rounded-3xl p-6 bg-white border border-slate-100">
+            <DialogHeader className="mb-4">
+              <DialogTitle className="text-xl font-bold flex items-center gap-2 text-slate-900">
+                <Clock className="w-5 h-5 text-primary" /> Manage Weekly Availability
+              </DialogTitle>
+              <DialogDescription className="text-xs text-slate-500">
+                Define the days and times when you are available for consultations. Slots will be auto-generated based on these rules.
+              </DialogDescription>
+            </DialogHeader>
+
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+              {/* Left Column: Create New Rule Form */}
+              <div className="bg-slate-50/50 p-5 rounded-2xl border border-slate-100">
+                <h3 className="text-sm font-bold text-slate-800 mb-4 uppercase tracking-wider">Add Availability</h3>
+                <form onSubmit={handleAddAvailability} className="space-y-4">
+                  <div>
+                    <label className="text-xs font-bold text-slate-500 uppercase block mb-1">Weekday</label>
+                    <select
+                      value={newWeekday}
+                      onChange={(e) => setNewWeekday(Number(e.target.value))}
+                      className="w-full h-10 px-3 rounded-xl border border-slate-200 bg-white text-sm focus:outline-none focus:ring-2 focus:ring-primary/20 text-slate-800"
+                    >
+                      <option value={0}>Monday</option>
+                      <option value={1}>Tuesday</option>
+                      <option value={2}>Wednesday</option>
+                      <option value={3}>Thursday</option>
+                      <option value={4}>Friday</option>
+                      <option value={5}>Saturday</option>
+                      <option value={6}>Sunday</option>
+                    </select>
+                  </div>
+
+                  <div className="grid grid-cols-2 gap-3">
+                    <div>
+                      <label className="text-xs font-bold text-slate-500 uppercase block mb-1">Start Time</label>
+                      <input
+                        type="time"
+                        value={newStartTime}
+                        onChange={(e) => setNewStartTime(e.target.value)}
+                        required
+                        className="w-full h-10 px-3 rounded-xl border border-slate-200 bg-white text-sm focus:outline-none focus:ring-2 focus:ring-primary/20 text-slate-800"
+                      />
+                    </div>
+                    <div>
+                      <label className="text-xs font-bold text-slate-500 uppercase block mb-1">End Time</label>
+                      <input
+                        type="time"
+                        value={newEndTime}
+                        onChange={(e) => setNewEndTime(e.target.value)}
+                        required
+                        className="w-full h-10 px-3 rounded-xl border border-slate-200 bg-white text-sm focus:outline-none focus:ring-2 focus:ring-primary/20 text-slate-800"
+                      />
+                    </div>
+                  </div>
+
+                  <div>
+                    <label className="text-xs font-bold text-slate-500 uppercase block mb-1">Slot Duration (Minutes)</label>
+                    <input
+                      type="number"
+                      min={10}
+                      max={180}
+                      value={newSlotDuration}
+                      onChange={(e) => setNewSlotDuration(Number(e.target.value))}
+                      required
+                      className="w-full h-10 px-3 rounded-xl border border-slate-200 bg-white text-sm focus:outline-none focus:ring-2 focus:ring-primary/20 text-slate-800"
+                    />
+                  </div>
+
+                  <div className="border-t border-slate-200/60 pt-3">
+                    <span className="text-[10px] font-bold text-slate-400 uppercase tracking-widest block mb-2">Break Period (Optional)</span>
+                    <div className="grid grid-cols-2 gap-3">
+                      <div>
+                        <label className="text-[10px] font-bold text-slate-500 uppercase block mb-1">Break Start</label>
+                        <input
+                          type="time"
+                          value={newBreakStartTime}
+                          onChange={(e) => setNewBreakStartTime(e.target.value)}
+                          className="w-full h-10 px-3 rounded-xl border border-slate-200 bg-white text-sm focus:outline-none focus:ring-2 focus:ring-primary/20 text-slate-800"
+                        />
+                      </div>
+                      <div>
+                        <label className="text-[10px] font-bold text-slate-500 uppercase block mb-1">Break End</label>
+                        <input
+                          type="time"
+                          value={newBreakEndTime}
+                          onChange={(e) => setNewBreakEndTime(e.target.value)}
+                          className="w-full h-10 px-3 rounded-xl border border-slate-200 bg-white text-sm focus:outline-none focus:ring-2 focus:ring-primary/20 text-slate-800"
+                        />
+                      </div>
+                    </div>
+                  </div>
+
+                  <Button
+                    type="submit"
+                    disabled={isSavingAvailability}
+                    className="w-full h-11 rounded-xl font-bold mt-4 shadow-sm"
+                  >
+                    {isSavingAvailability ? <Loader2 className="w-4 h-4 animate-spin" /> : "Save Rule"}
+                  </Button>
+                </form>
+              </div>
+
+              {/* Right Column: Existing Rules List */}
+              <div className="space-y-4">
+                <h3 className="text-sm font-bold text-slate-800 uppercase tracking-wider">Current Hours</h3>
+                {loadingAvailabilities ? (
+                  <div className="flex flex-col items-center justify-center py-12 gap-2 text-slate-400 text-xs font-semibold">
+                    <Loader2 className="w-5 h-5 text-primary animate-spin" /> Loading rules...
+                  </div>
+                ) : availabilities.length === 0 ? (
+                  <div className="text-center py-12 text-slate-400 text-xs italic bg-slate-50/50 rounded-2xl border border-dashed border-slate-200">
+                    No availability rules defined yet.
+                  </div>
+                ) : (
+                  <div className="space-y-2.5 max-h-[350px] overflow-y-auto pr-1">
+                    {availabilities.map((item) => {
+                      const weekdays = ["Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday", "Sunday"];
+                      const formatTimeDisplay = (t: string) => {
+                        if (!t) return "";
+                        return t.substring(0, 5); // display HH:MM
+                      };
+                      return (
+                        <div
+                          key={item.id}
+                          className="bg-white p-4 rounded-xl border border-slate-100 shadow-sm flex items-center justify-between gap-3 hover:border-slate-200 transition-all text-slate-800"
+                        >
+                          <div>
+                            <div className="font-bold text-sm text-slate-850">{weekdays[item.weekday]}</div>
+                            <div className="text-xs text-slate-500 font-semibold mt-0.5">
+                              {formatTimeDisplay(item.start_time)} - {formatTimeDisplay(item.end_time)} ({item.slot_duration_minutes}m slots)
+                            </div>
+                            {item.break_start_time && (
+                              <div className="text-[10px] text-amber-600 bg-amber-50 rounded-md px-1.5 py-0.5 mt-1.5 inline-block font-semibold">
+                                Break: {formatTimeDisplay(item.break_start_time)} - {formatTimeDisplay(item.break_end_time)}
+                              </div>
+                            )}
+                          </div>
+                          <Button
+                            variant="ghost"
+                            size="icon"
+                            type="button"
+                            onClick={() => handleDeleteAvailability(item.id)}
+                            className="text-rose-500 hover:text-rose-600 hover:bg-rose-50 shrink-0 w-8 h-8 rounded-lg"
+                          >
+                            <Trash2 className="w-4 h-4" />
+                          </Button>
+                        </div>
+                      );
+                    })}
+                  </div>
+                )}
+              </div>
+            </div>
+          </DialogContent>
+        </Dialog>
+
       </div>
     );
   }

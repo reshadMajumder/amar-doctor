@@ -8,7 +8,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { 
   Star, Clock, MapPin, Languages, CheckCircle, 
   ArrowLeft, ShieldCheck, Award, MessageCircle,
-  Stethoscope, Calendar, Share2
+  Stethoscope, Calendar, Share2, Loader2
 } from "lucide-react";
 import { api } from "@/lib/api";
 import Link from "next/link";
@@ -88,6 +88,53 @@ export default function DoctorProfilePage() {
   const router = useRouter();
   const [doctor, setDoctor] = useState<any | null>(null);
   const [loading, setLoading] = useState(true);
+
+  // Availability & slots states
+  const [selectedDate, setSelectedDate] = useState<Date>(new Date());
+  const [slots, setSlots] = useState<any[]>([]);
+  const [loadingSlots, setLoadingSlots] = useState(false);
+  const [selectedSlot, setSelectedSlot] = useState<string | null>(null);
+
+  useEffect(() => {
+    if (!id) return;
+    async function fetchSlots() {
+      try {
+        setLoadingSlots(true);
+        const yyyy = selectedDate.getFullYear();
+        const mm = String(selectedDate.getMonth() + 1).padStart(2, "0");
+        const dd = String(selectedDate.getDate()).padStart(2, "0");
+        const dateStr = `${yyyy}-${mm}-${dd}`;
+        const res = await api.get(`/api/v1/appointments/doctors/${id}/available-slots/?date=${dateStr}`);
+        setSlots(res.data || res);
+      } catch (err) {
+        console.error("Failed to fetch slots", err);
+        setSlots([]);
+      } finally {
+        setLoadingSlots(false);
+      }
+    }
+    fetchSlots();
+  }, [id, selectedDate]);
+
+  const days = Array.from({ length: 7 }, (_, i) => {
+    const d = new Date();
+    d.setDate(d.getDate() + i);
+    return d;
+  });
+
+  const formatSlotTime = (isoString: string) => {
+    const d = new Date(isoString);
+    let hours = d.getHours();
+    const minutes = String(d.getMinutes()).padStart(2, "0");
+    const period = hours >= 12 ? "PM" : "AM";
+    hours = hours % 12;
+    if (hours === 0) hours = 12;
+    return `${hours}:${minutes} ${period}`;
+  };
+
+  const formatDateLabel = (d: Date) => {
+    return d.toLocaleDateString("en-US", { weekday: "long", month: "short", day: "numeric" });
+  };
 
   useEffect(() => {
     async function loadDoctor() {
@@ -199,7 +246,12 @@ export default function DoctorProfilePage() {
                 </div>
 
                 <div className="mt-8 flex flex-col sm:flex-row gap-3">
-                  <Link href={`/consultation/new?doc=${doctor.id}`} className="flex-1">
+                  <Link 
+                    href={selectedSlot 
+                      ? `/consultation/new?doc=${doctor.id}&date=${selectedDate.toISOString().split('T')[0]}&slot=${selectedSlot}`
+                      : `/consultation/new?doc=${doctor.id}`}
+                    className="flex-1"
+                  >
                     <Button className="w-full h-14 rounded-2xl font-bold text-base shadow-lg shadow-primary/20 gap-2">
                       <Calendar className="w-5 h-5" /> Book Consultation
                     </Button>
@@ -211,6 +263,98 @@ export default function DoctorProfilePage() {
               </div>
             </div>
           </CardContent>
+        </Card>
+
+        {/* Availability & Slot Selector */}
+        <Card className="rounded-[2.5rem] border-none shadow-xl bg-white p-8 mb-8">
+          <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 mb-6">
+            <div>
+              <h2 className="text-xl font-bold flex items-center gap-2">
+                <Calendar className="w-5 h-5 text-primary" /> Select Appointment Slot
+              </h2>
+              <p className="text-sm text-slate-500 mt-1">
+                Choose a date and time slot below to proceed with booking.
+              </p>
+            </div>
+            {selectedSlot && (
+              <div className="text-xs bg-primary/10 text-primary px-4 py-2 rounded-xl font-extrabold self-start md:self-auto">
+                Selected: {formatSlotTime(selectedSlot)} on {formatDateLabel(selectedDate)}
+              </div>
+            )}
+          </div>
+
+          {/* Date Selector Horizontal Strip */}
+          <div className="flex gap-3 overflow-x-auto pb-4 mb-6 scrollbar-thin scrollbar-thumb-slate-200">
+            {days.map((d, index) => {
+              const isSelected = d.toDateString() === selectedDate.toDateString();
+              const dayName = d.toLocaleDateString("en-US", { weekday: "short" });
+              const dayNum = d.getDate();
+              const monthName = d.toLocaleDateString("en-US", { month: "short" });
+              return (
+                <button
+                  key={index}
+                  onClick={() => {
+                    setSelectedDate(d);
+                    setSelectedSlot(null);
+                  }}
+                  className={cn(
+                    "flex flex-col items-center justify-center p-3 rounded-2xl min-w-[76px] transition-all border shrink-0",
+                    isSelected
+                      ? "bg-primary text-white border-primary shadow-lg shadow-primary/20"
+                      : "bg-slate-50 text-slate-600 border-slate-100 hover:border-primary/30"
+                  )}
+                >
+                  <span className="text-[10px] uppercase font-bold tracking-wider opacity-80">{dayName}</span>
+                  <span className="text-lg font-black my-0.5">{dayNum}</span>
+                  <span className="text-[10px] font-bold opacity-80">{monthName}</span>
+                </button>
+              );
+            })}
+          </div>
+
+          {/* Time Slots Grid */}
+          <div className="grid grid-cols-2 sm:grid-cols-4 md:grid-cols-6 gap-3">
+            {loadingSlots ? (
+              <div className="col-span-full py-8 flex items-center justify-center gap-2 text-slate-500 font-semibold text-sm">
+                <Loader2 className="w-5 h-5 animate-spin text-primary" /> Loading available slots...
+              </div>
+            ) : slots.length === 0 ? (
+              <div className="col-span-full py-8 text-center text-slate-400 font-semibold text-sm italic">
+                No slots available on this day.
+              </div>
+            ) : (
+              slots.map((slot) => {
+                const isSlotSelected = selectedSlot === slot.start;
+                return (
+                  <button
+                    key={slot.start}
+                    onClick={() => setSelectedSlot(slot.start)}
+                    className={cn(
+                      "h-12 rounded-xl text-xs font-extrabold transition-all border",
+                      isSlotSelected
+                        ? "bg-primary text-white border-primary shadow-lg shadow-primary/20"
+                        : "bg-white text-slate-600 border-slate-100 hover:border-primary/30"
+                    )}
+                  >
+                    {formatSlotTime(slot.start)}
+                  </button>
+                );
+              })
+            )}
+          </div>
+
+          {/* Book Slot Button */}
+          {selectedSlot && (
+            <div className="mt-8 flex justify-end">
+              <Link 
+                href={`/consultation/new?doc=${doctor.id}&date=${selectedDate.toISOString().split('T')[0]}&slot=${selectedSlot}`}
+              >
+                <Button className="h-14 rounded-2xl font-bold text-base shadow-lg shadow-primary/20 gap-2 px-8">
+                  <Calendar className="w-5 h-5" /> Book Selected Slot
+                </Button>
+              </Link>
+            </div>
+          )}
         </Card>
 
         {/* Detailed Sections */}

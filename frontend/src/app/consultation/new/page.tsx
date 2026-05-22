@@ -117,6 +117,20 @@ function BookingContent() {
   const [loadingSlots, setLoadingSlots] = useState(false);
 
   useEffect(() => {
+    const paramDate = searchParams.get("date");
+    if (paramDate) {
+      const d = new Date(paramDate);
+      if (!isNaN(d.getTime())) {
+        setDate(d);
+      }
+    }
+    const paramSlot = searchParams.get("slot");
+    if (paramSlot) {
+      setSelectedSlot(paramSlot);
+    }
+  }, [searchParams]);
+
+  useEffect(() => {
     async function loadDoctor() {
       if (!docId) return;
       try {
