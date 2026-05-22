@@ -269,7 +269,7 @@ function BookingContent() {
   }
 
   return (
-    <div className="max-w-4xl mx-auto px-4 pt-8 pb-32 md:pt-24 min-h-screen bg-[#f6f8fa]">
+    <div className="max-w-5xl mx-auto px-4 pt-8 pb-32 md:pt-24 min-h-screen bg-[#f6f8fa]">
       <div className="flex items-center gap-4 mb-8">
         <Button variant="ghost" size="icon" className="rounded-full" onClick={() => router.back()}>
           <ArrowLeft className="w-5 h-5" />
@@ -317,7 +317,7 @@ function BookingContent() {
                 </div>
                 <div className="flex-1">
                   <Label className="text-sm font-bold text-slate-500 uppercase tracking-widest mb-4 block">Available Slots</Label>
-                  <div className="grid grid-cols-2 sm:grid-cols-3 gap-2">
+                  <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-2 xl:grid-cols-3 gap-2">
                     {loadingSlots ? (
                       <div className="col-span-full py-8 flex flex-col items-center justify-center gap-2 text-slate-400">
                         <Loader2 className="w-5 h-5 animate-spin text-primary" />

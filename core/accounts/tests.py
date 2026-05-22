@@ -368,3 +368,94 @@ class TestEmailService:
         assert call_args['to'] == 'test@example.com'
         assert '123456' in call_args['html']
 
+
+@pytest.mark.django_db
+class TestDoctorListView:
+    @pytest.fixture(autouse=True)
+    def setup_locmem_cache(self, settings):
+        settings.CACHES = {
+            'default': {
+                'BACKEND': 'django.core.cache.backends.locmem.LocMemCache',
+            }
+        }
+        cache.clear()
+
+    def test_doctor_list_excludes_suspended_and_inactive(self, api_client):
+        # 1. Approved & Active & Available
+        user1 = User.objects.create_user(
+            email='active_doc@test.com', password='password123', full_name='Dr. Active', role='doctor'
+        )
+        DoctorProfile.objects.create(
+            user=user1, specialization='Cardiology', bmdc_number='111', verification_status='approved', is_available=True
+        )
+
+        # 2. Suspended
+        user2 = User.objects.create_user(
+            email='suspended_doc@test.com', password='password123', full_name='Dr. Suspended', role='doctor', is_suspended=True
+        )
+        DoctorProfile.objects.create(
+            user=user2, specialization='Cardiology', bmdc_number='222', verification_status='approved', is_available=True
+        )
+
+        # 3. Inactive
+        user3 = User.objects.create_user(
+            email='inactive_doc@test.com', password='password123', full_name='Dr. Inactive', role='doctor', is_active=False
+        )
+        DoctorProfile.objects.create(
+            user=user3, specialization='Cardiology', bmdc_number='333', verification_status='approved', is_available=True
+        )
+
+        url = reverse('doctor_list')
+        response = api_client.get(url)
+        assert response.status_code == status.HTTP_200_OK
+        data = response.data['data']
+        
+        # Only active_doc should be listed
+        assert len(data) == 1
+        assert data[0]['user']['email'] == 'active_doc@test.com'
+
+    def test_doctor_list_caching_30s_ttl(self, api_client):
+        # Create approved doctor
+        user = User.objects.create_user(
+            email='cache_doc@test.com', password='password123', full_name='Dr. Cache', role='doctor'
+        )
+        DoctorProfile.objects.create(
+            user=user, specialization='Cardiology', bmdc_number='444', verification_status='approved', is_available=True
+        )
+
+        url = reverse('doctor_list')
+        
+        # First request should populate cache
+        response1 = api_client.get(url)
+        assert response1.status_code == status.HTTP_200_OK
+        
+        # Modify database directly without triggering signal (using update)
+        DoctorProfile.objects.filter(user=user).update(specialization='Neurology')
+        
+        # Second request should still return cached data (Cardiology)
+        response2 = api_client.get(url)
+        assert response2.data['data'][0]['specialization'] == 'Cardiology'
+
+        # Clear cache manually to verify database update
+        cache.clear()
+        response3 = api_client.get(url)
+        assert response3.data['data'][0]['specialization'] == 'Neurology'
+
+    def test_doctor_list_specific_id_fallback(self, api_client):
+        # Create a pending doctor (not approved)
+        user = User.objects.create_user(
+            email='pending_doc@test.com', password='password123', full_name='Dr. Pending', role='doctor'
+        )
+        DoctorProfile.objects.create(
+            user=user, specialization='Cardiology', bmdc_number='555', verification_status='pending', is_available=True
+        )
+
+        url = reverse('doctor_list')
+        
+        # Querying specific doctor_id should fallback to pending doctor
+        response = api_client.get(f"{url}?doctor_id={user.id}")
+        assert response.status_code == status.HTTP_200_OK
+        assert len(response.data['data']) == 1
+        assert response.data['data'][0]['user']['email'] == 'pending_doc@test.com'
+
+

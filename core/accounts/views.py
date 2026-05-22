@@ -217,13 +217,30 @@ class DoctorListView(APIView):
         
         if doctors_data is None:
             from django.db.models import Q
-            queryset = DoctorProfile.objects.filter(verification_status='approved')
-            if not queryset.exists():
-                # Dev/sandbox fallback to display profiles
-                queryset = DoctorProfile.objects.all()
-
+            queryset = DoctorProfile.objects.filter(
+                verification_status='approved',
+                user__is_active=True,
+                user__is_suspended=False
+            )
+            
             if doctor_id:
-                queryset = queryset.filter(user_id=doctor_id)
+                if not queryset.filter(user_id=doctor_id).exists():
+                    # Dev/sandbox fallback to display the profile if not approved yet
+                    queryset = DoctorProfile.objects.filter(
+                        user_id=doctor_id,
+                        user__is_active=True,
+                        user__is_suspended=False
+                    )
+                else:
+                    queryset = queryset.filter(user_id=doctor_id)
+            else:
+                if not queryset.exists():
+                    # Dev/sandbox fallback to display profiles
+                    queryset = DoctorProfile.objects.filter(
+                        user__is_active=True,
+                        user__is_suspended=False
+                    )
+
             if specialization:
                 spec_clean = specialization.lower().strip()
                 if spec_clean in ['er', 'emergency', 'emergency room', 'icu', 'ccu']:
@@ -242,8 +259,8 @@ class DoctorListView(APIView):
             serializer = DoctorProfileSerializer(queryset, many=True)
             doctors_data = serializer.data
             
-            # Cache the serialized result for 5 minutes (300 seconds)
-            cache.set(cache_key, doctors_data, timeout=300)
+            # Cache the serialized result for 30 seconds
+            cache.set(cache_key, doctors_data, timeout=30)
 
         return Response(success_response(data=doctors_data), status=status.HTTP_200_OK)
 

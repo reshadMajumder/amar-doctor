@@ -1,4 +1,5 @@
-from rest_framework import viewsets, status, generics
+from rest_framework.views import APIView
+from rest_framework import viewsets, status
 from rest_framework.response import Response
 from rest_framework.decorators import action
 from rest_framework.permissions import IsAuthenticated
@@ -28,13 +29,11 @@ class DoctorAvailabilityViewSet(viewsets.ModelViewSet):
     def perform_create(self, serializer):
         serializer.save(doctor=self.request.user)
 
-class AvailableSlotsView(generics.ListAPIView):
+class AvailableSlotsView(APIView):
     permission_classes = [IsAuthenticated]
-    serializer_class = SlotSerializer
 
-    def get_queryset(self):
-        doctor_id = self.kwargs.get('doctor_id')
-        date_str = self.request.query_params.get('date')
+    def get(self, request, doctor_id):
+        date_str = request.query_params.get('date')
         
         if date_str:
             try:
@@ -45,7 +44,9 @@ class AvailableSlotsView(generics.ListAPIView):
             date_obj = timezone.now().date()
 
         doctor = get_object_or_404(User, id=doctor_id, role='doctor')
-        return SlotGenerationService.generate_slots(doctor, date_obj)
+        slots = SlotGenerationService.generate_slots(doctor, date_obj)
+        serializer = SlotSerializer(slots, many=True)
+        return Response(serializer.data)
 
 class AppointmentViewSet(viewsets.ModelViewSet):
     permission_classes = [IsAuthenticated]

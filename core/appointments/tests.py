@@ -154,3 +154,25 @@ class TestAppointmentAPI:
         }
         response = api_client.post(url, data)
         assert response.status_code == status.HTTP_201_CREATED
+
+    def test_available_slots_api(self, api_client, setup_users):
+        doctor, patient = setup_users
+        api_client.force_authenticate(user=patient)
+        
+        # Setup availability for doctor on Monday
+        DoctorAvailability.objects.create(
+            doctor=doctor,
+            weekday=0, # Monday
+            start_time=time(9, 0),
+            end_time=time(11, 0),
+            slot_duration_minutes=30,
+            timezone='UTC'
+        )
+        
+        url = reverse('available-slots', kwargs={'doctor_id': doctor.id})
+        response = api_client.get(url, {'date': '2026-05-25'})  # 2026-05-25 is a Monday
+        assert response.status_code == status.HTTP_200_OK
+        assert len(response.data) == 4
+        assert response.data[0]['start'] is not None
+        assert response.data[0]['end'] is not None
+        assert response.data[0]['timezone'] == 'UTC'

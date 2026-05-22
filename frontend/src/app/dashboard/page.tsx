@@ -894,6 +894,15 @@ export default function Dashboard() {
     return renderDoctorDashboard();
   }
 
+  const pendingPatientApps = appointments.filter(app => app.status === 'pending');
+  const activePatientApps = appointments.filter(app => ['doctor_approved', 'confirmed', 'in_progress'].includes(app.status));
+  const historyPatientApps = appointments.filter(app => ['completed', 'cancelled', 'rejected', 'missed'].includes(app.status));
+
+  const displayedPatientAppointments = 
+    activeTab === 'pending' ? pendingPatientApps :
+    activeTab === 'active' ? activePatientApps :
+    historyPatientApps;
+
   return (
     <div className="min-h-screen bg-[#f8fafc]">
       <Navigation />
@@ -1003,69 +1012,124 @@ export default function Dashboard() {
 
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
           {/* Appointments */}
-          <section className="lg:col-span-2">
-            <div className="flex justify-between items-center mb-4 md:mb-6 px-1">
-              <h2 className="text-xs md:text-lg font-bold uppercase md:capitalize tracking-widest md:tracking-normal text-slate-400 md:text-slate-900">Next Appointments</h2>
+          <section className="lg:col-span-2 space-y-6">
+            <div className="flex justify-between items-center px-1">
+              <h2 className="text-sm md:text-lg font-bold flex items-center gap-2 text-slate-900">
+                <Calendar className="w-5 h-5 text-primary" /> Consultations
+              </h2>
               <Link href="/consultations" className="text-[10px] md:text-sm font-bold text-primary hover:underline">View Schedule</Link>
             </div>
+
+            {/* Navigation Tabs */}
+            <div className="flex gap-2 bg-slate-100 p-1 rounded-xl w-full max-w-sm shadow-inner">
+              <button
+                onClick={() => setActiveTab('pending')}
+                className={cn(
+                  "flex-1 py-2 text-xs font-bold rounded-lg transition-all",
+                  activeTab === 'pending'
+                    ? "bg-white text-slate-900 shadow-sm"
+                    : "text-slate-500 hover:text-slate-900"
+                )}
+              >
+                Pending ({pendingPatientApps.length})
+              </button>
+              <button
+                onClick={() => setActiveTab('active')}
+                className={cn(
+                  "flex-1 py-2 text-xs font-bold rounded-lg transition-all",
+                  activeTab === 'active'
+                    ? "bg-white text-slate-900 shadow-sm"
+                    : "text-slate-500 hover:text-slate-900"
+                )}
+              >
+                Active ({activePatientApps.length})
+              </button>
+              <button
+                onClick={() => setActiveTab('history')}
+                className={cn(
+                  "flex-1 py-2 text-xs font-bold rounded-lg transition-all",
+                  activeTab === 'history'
+                    ? "bg-white text-slate-900 shadow-sm"
+                    : "text-slate-500 hover:text-slate-900"
+                )}
+              >
+                History ({historyPatientApps.length})
+              </button>
+            </div>
             
-            <div className="space-y-2 md:space-y-4">
-              {appointments
-                .filter(app => ['pending', 'doctor_approved', 'confirmed', 'in_progress'].includes(app.status))
-                .map(app => (
-                  <div key={app.id} className="bg-white p-3 md:p-5 rounded-2xl border-none shadow-sm flex items-center justify-between gap-3 md:hover:shadow-md transition-shadow">
-                    <div className="flex items-center gap-3 md:gap-5 min-w-0">
-                      <div className="w-10 h-10 md:w-14 md:h-14 rounded-xl bg-slate-50 flex items-center justify-center text-slate-400 shrink-0 border">
-                        <Calendar className="w-4 h-4 md:w-6 md:h-6" />
+            <div className="space-y-3 md:space-y-4">
+              {displayedPatientAppointments.map(app => (
+                <div key={app.id} className="bg-white p-4 md:p-6 rounded-2xl border-none shadow-sm flex flex-col md:flex-row md:items-center justify-between gap-4 md:hover:shadow-md transition-shadow">
+                  <div className="flex items-center gap-4 min-w-0">
+                    <div className="w-12 h-12 rounded-xl bg-slate-50 flex items-center justify-center text-slate-400 shrink-0 border border-slate-100">
+                      <Calendar className="w-5 h-5" />
+                    </div>
+                    <div className="min-w-0">
+                      <div className="font-bold text-sm md:text-lg text-slate-900 truncate">
+                        {app.doctor_name || "Doctor Practitioner"}
                       </div>
-                      <div className="min-w-0">
-                        <div className="font-bold text-sm md:text-lg text-slate-900 truncate">
-                          {app.doctor_name || "Doctor Practitioner"}
-                        </div>
-                        <div className="text-[10px] md:text-sm text-slate-400 font-medium truncate">
-                          {formatDateTime(app.scheduled_start)} • {
-                            app.consultation_type === 'video' ? 'Video' :
-                            app.consultation_type === 'voice' ? 'Voice' :
-                            app.consultation_type === 'text' ? 'Text' :
-                            app.consultation_type?.toUpperCase() || 'TEXT'
-                          }
-                        </div>
+                      <div className="text-[10px] md:text-sm text-slate-400 font-medium truncate mt-0.5">
+                        {formatDateTime(app.scheduled_start)} • {
+                          app.consultation_type === 'video' ? 'Video' :
+                          app.consultation_type === 'voice' ? 'Voice' :
+                          app.consultation_type === 'text' ? 'Text' :
+                          app.consultation_type?.toUpperCase() || 'TEXT'
+                        }
                       </div>
                     </div>
-                    <div className="flex items-center gap-2 md:gap-4 shrink-0">
-                      <div className={cn("text-[8px] md:text-xs font-bold uppercase tracking-tight px-2 py-0.5 md:px-3 md:py-1 rounded-md", 
-                        app.status === 'in_progress' ? "bg-emerald-50 text-emerald-600 animate-pulse" :
-                        app.status === 'doctor_approved' || app.status === 'confirmed' ? "bg-accent/10 text-accent" : 
-                        "bg-orange-50 text-orange-600"
-                      )}>
-                        {app.status === 'doctor_approved' ? 'Approved' : app.status}
-                      </div>
-                      {['doctor_approved', 'confirmed', 'in_progress'].includes(app.status) && app.chat_room_id ? (
-                        <Link href={`/chat/${app.chat_room_id}`}>
-                          <Button size="sm" className="h-8 md:h-10 bg-primary hover:bg-primary/95 text-white rounded-lg md:rounded-xl px-3 md:px-5 text-[10px] md:text-sm font-bold">
-                            Join Chat
-                          </Button>
-                        </Link>
-                      ) : app.status === 'pending' && app.payment_status === 'unpaid' ? (
+                  </div>
+                  <div className="flex items-center gap-2 md:gap-4 shrink-0 justify-between md:justify-end">
+                    <div className={cn("text-[8px] md:text-xs font-bold uppercase tracking-tight px-2.5 py-1 rounded-md", 
+                      app.status === 'in_progress' ? "bg-emerald-50 text-emerald-600 animate-pulse border border-emerald-100" :
+                      app.status === 'doctor_approved' ? "bg-accent/10 text-accent border border-accent/20" : 
+                      app.status === 'confirmed' ? "bg-emerald-50 text-emerald-600 border border-emerald-100" :
+                      app.status === 'pending' ? "bg-amber-50 text-amber-600 border border-amber-100" :
+                      app.status === 'completed' ? "bg-blue-50 text-blue-600 border border-blue-100" :
+                      "bg-rose-50 text-rose-600 border border-rose-100"
+                    )}>
+                      {app.status === 'doctor_approved' ? 'Approved' : app.status}
+                    </div>
+                    {['doctor_approved', 'confirmed', 'in_progress'].includes(app.status) ? (
+                      <Button 
+                        onClick={() => handleStartSession(app.id)}
+                        disabled={actionInProgress !== null}
+                        className="h-8 md:h-10 bg-primary hover:bg-primary/95 text-white rounded-xl px-4 text-[10px] md:text-xs font-bold shadow-sm gap-1.5 flex items-center shrink-0"
+                      >
+                        {actionInProgress === String(app.id) ? (
+                          <Loader2 className="w-3.5 h-3.5 animate-spin" />
+                        ) : (
+                          <Video className="w-3.5 h-3.5" />
+                        )}
+                        {app.status === 'in_progress' ? "Join Chat" : "Start Chat"}
+                      </Button>
+                    ) : app.status === 'pending' ? (
+                      app.payment_status === 'unpaid' ? (
                         <Link href={`/consultation/success?appt=${app.id}`}>
-                          <Button size="sm" variant="outline" className="h-8 md:h-10 rounded-lg md:rounded-xl px-3 md:px-5 text-[10px] md:text-sm font-bold border-slate-200 hover:bg-slate-50">
+                          <Button size="sm" variant="outline" className="h-8 md:h-10 rounded-xl px-4 text-[10px] md:text-xs font-bold border-slate-200 hover:bg-slate-50 text-slate-700">
                             Pay Now
                           </Button>
                         </Link>
                       ) : (
-                        <Button size="sm" disabled className="h-8 md:h-10 bg-slate-100 text-slate-400 rounded-lg md:rounded-xl px-3 md:px-5 text-[10px] md:text-sm font-bold shadow-none border-none cursor-not-allowed">
-                          Awaiting Review
+                        <Button size="sm" disabled className="h-8 md:h-10 bg-slate-50 text-slate-400 rounded-xl px-4 text-[10px] md:text-xs font-bold border-none cursor-not-allowed">
+                          Awaiting Approval
                         </Button>
-                      )}
-                    </div>
+                      )
+                    ) : (
+                      <Button size="sm" disabled className="h-8 md:h-10 bg-slate-50 text-slate-400 rounded-xl px-4 text-[10px] md:text-xs font-bold border-none cursor-not-allowed uppercase">
+                        {app.status}
+                      </Button>
+                    )}
                   </div>
-                ))}
-              {appointments.filter(app => ['pending', 'doctor_approved', 'confirmed', 'in_progress'].includes(app.status)).length === 0 && (
-                <div className="text-center py-12 bg-slate-50 rounded-2xl border border-dashed border-slate-200">
-                  <p className="text-xs md:text-base text-slate-400 font-bold md:font-medium uppercase md:capitalize">No active bookings for this week</p>
-                  <Link href="/doctors" className="inline-block mt-4">
-                    <Button variant="outline" className="rounded-xl">Find a Doctor</Button>
-                  </Link>
+                </div>
+              ))}
+              {displayedPatientAppointments.length === 0 && (
+                <div className="text-center py-12 bg-white rounded-2xl border border-dashed border-slate-200 shadow-sm">
+                  <p className="text-xs md:text-sm text-slate-400 font-bold uppercase tracking-wider">No {activeTab} consultations found</p>
+                  {activeTab === 'pending' && (
+                    <Link href="/doctors" className="inline-block mt-4">
+                      <Button variant="outline" className="rounded-xl font-bold">Find a Doctor</Button>
+                    </Link>
+                  )}
                 </div>
               )}
             </div>
