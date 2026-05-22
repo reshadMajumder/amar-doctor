@@ -1,7 +1,7 @@
 
 "use client";
 
-import { useState, useEffect, Suspense } from "react";
+import { useState, useEffect, useRef, Suspense } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import { Navigation } from "@/components/layout/Navigation";
 import { Button } from "@/components/ui/button";
@@ -115,16 +115,20 @@ function BookingContent() {
   const [isBooking, setIsBooking] = useState(false);
   const [slots, setSlots] = useState<any[]>([]);
   const [loadingSlots, setLoadingSlots] = useState(false);
+  // Track whether this is the first slot fetch (from URL params) so we don't clear preselected slot
+  const isInitialLoad = useRef(true);
 
   useEffect(() => {
     const paramDate = searchParams.get("date");
+    const paramSlot = searchParams.get("slot");
     if (paramDate) {
-      const d = new Date(paramDate);
-      if (!isNaN(d.getTime())) {
-        setDate(d);
+      // Parse date in a timezone-safe way — treat YYYY-MM-DD as local noon
+      const [y, m, d] = paramDate.split("-").map(Number);
+      const parsed = new Date(y, m - 1, d, 12, 0, 0);
+      if (!isNaN(parsed.getTime())) {
+        setDate(parsed);
       }
     }
-    const paramSlot = searchParams.get("slot");
     if (paramSlot) {
       setSelectedSlot(paramSlot);
     }
@@ -156,10 +160,18 @@ function BookingContent() {
   useEffect(() => {
     if (!docId) return;
     const activeDate = date || new Date();
+    // Only reset slot selection on user-initiated date changes (not initial URL param load)
+    if (isInitialLoad.current) {
+      isInitialLoad.current = false;
+    } else {
+      setSelectedSlot(null);
+    }
 
     async function fetchSlots() {
       try {
         setLoadingSlots(true);
+        setSlots([]);
+        // Build date string from local calendar date components (not UTC)
         const yyyy = activeDate.getFullYear();
         const mm = String(activeDate.getMonth() + 1).padStart(2, "0");
         const dd = String(activeDate.getDate()).padStart(2, "0");
@@ -167,54 +179,10 @@ function BookingContent() {
 
         const res = await api.get(`/api/v1/appointments/doctors/${docId}/available-slots/?date=${dateStr}`);
         const list = res.data || res;
-        if (Array.isArray(list) && list.length > 0) {
-          setSlots(list);
-        } else {
-          const mockTimeSlots = [
-            "09:00 AM", "09:30 AM", "10:00 AM", "10:30 AM", 
-            "11:00 AM", "11:30 AM", "02:00 PM", "02:30 PM", 
-            "03:00 PM", "03:30 PM", "04:00 PM"
-          ];
-          const generated = mockTimeSlots.map(timeStr => {
-            const [time, period] = timeStr.split(" ");
-            let [hours, minutes] = time.split(":").map(Number);
-            if (period === "PM" && hours !== 12) hours += 12;
-            if (period === "AM" && hours === 12) hours = 0;
-            
-            const slotDate = new Date(activeDate);
-            slotDate.setHours(hours, minutes, 0, 0);
-            
-            return {
-              start: slotDate.toISOString(),
-              end: new Date(slotDate.getTime() + 30 * 60 * 1000).toISOString(),
-              timezone: "UTC"
-            };
-          });
-          setSlots(generated);
-        }
+        setSlots(Array.isArray(list) ? list : []);
       } catch (err) {
         console.error("Failed to fetch slots", err);
-        const mockTimeSlots = [
-          "09:00 AM", "09:30 AM", "10:00 AM", "10:30 AM", 
-          "11:00 AM", "11:30 AM", "02:00 PM", "02:30 PM", 
-          "03:00 PM", "03:30 PM", "04:00 PM"
-        ];
-        const generated = mockTimeSlots.map(timeStr => {
-          const [time, period] = timeStr.split(" ");
-          let [hours, minutes] = time.split(":").map(Number);
-          if (period === "PM" && hours !== 12) hours += 12;
-          if (period === "AM" && hours === 12) hours = 0;
-          
-          const slotDate = new Date(activeDate);
-          slotDate.setHours(hours, minutes, 0, 0);
-          
-          return {
-            start: slotDate.toISOString(),
-            end: new Date(slotDate.getTime() + 30 * 60 * 1000).toISOString(),
-            timezone: "UTC"
-          };
-        });
-        setSlots(generated);
+        setSlots([]);
       } finally {
         setLoadingSlots(false);
       }
@@ -351,12 +319,17 @@ function BookingContent() {
                   <Label className="text-sm font-bold text-slate-500 uppercase tracking-widest mb-4 block">Available Slots</Label>
                   <div className="grid grid-cols-2 sm:grid-cols-3 gap-2">
                     {loadingSlots ? (
-                      <div className="col-span-full py-6 flex items-center justify-center gap-2 text-slate-500 font-semibold text-xs">
-                        <Loader2 className="w-4 h-4 animate-spin text-primary" /> Loading live slots...
+                      <div className="col-span-full py-8 flex flex-col items-center justify-center gap-2 text-slate-400">
+                        <Loader2 className="w-5 h-5 animate-spin text-primary" />
+                        <span className="text-xs font-semibold">Fetching available slots...</span>
                       </div>
                     ) : slots.length === 0 ? (
-                      <div className="col-span-full py-6 text-center text-slate-400 font-semibold text-xs italic">
-                        No slots available for this day.
+                      <div className="col-span-full py-8 text-center space-y-2">
+                        <div className="text-2xl">📅</div>
+                        <div className="text-sm font-bold text-slate-600">No slots available</div>
+                        <div className="text-xs text-slate-400">
+                          The doctor has not set availability for this day.<br />Try selecting a different date.
+                        </div>
                       </div>
                     ) : (
                       slots.map((slot) => (
@@ -367,7 +340,7 @@ function BookingContent() {
                             "h-12 rounded-xl text-xs font-extrabold transition-all border",
                             selectedSlot === slot.start
                               ? "bg-primary text-white border-primary shadow-lg shadow-primary/20" 
-                              : "bg-white text-slate-600 border-slate-100 hover:border-primary/30"
+                              : "bg-white text-slate-600 border-slate-100 hover:border-primary/30 hover:bg-primary/5"
                           )}
                         >
                           {formatSlotTime(slot.start)}
@@ -375,6 +348,12 @@ function BookingContent() {
                       ))
                     )}
                   </div>
+                  {selectedSlot && (
+                    <div className="mt-3 flex items-center gap-2 text-xs font-bold text-primary bg-primary/5 border border-primary/10 rounded-xl px-3 py-2">
+                      <CheckCircle2 className="w-3.5 h-3.5 shrink-0" />
+                      Selected: {formatSlotTime(selectedSlot)}
+                    </div>
+                  )}
                 </div>
               </div>
             </CardContent>
