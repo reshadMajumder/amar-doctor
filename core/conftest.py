@@ -9,6 +9,16 @@ def pytest_configure(config):
             'NAME': ':memory:',
         }
     }
+    settings.CACHES = {
+        'default': {
+            'BACKEND': 'django.core.cache.backends.locmem.LocMemCache',
+        }
+    }
+    settings.CHANNEL_LAYERS = {
+        'default': {
+            'BACKEND': 'channels.layers.InMemoryChannelLayer',
+        }
+    }
 
 @pytest.fixture
 def api_client():

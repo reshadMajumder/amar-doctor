@@ -79,6 +79,8 @@ services:
       - EMAIL_HOST_USER=${EMAIL_HOST_USER:-}
       - EMAIL_HOST_PASSWORD=${EMAIL_HOST_PASSWORD:-}
       - DEFAULT_FROM_EMAIL=${DEFAULT_FROM_EMAIL:-noreply@amardoctor.com}
+      - EMAIL_PROVIDER=${EMAIL_PROVIDER:-smtp}
+      - RESEND_API_KEY=${RESEND_API_KEY:-}
       - SSL_STORE_ID=${SSL_STORE_ID:-}
       - SSL_STORE_PASSWORD=${SSL_STORE_PASSWORD:-}
       - PUBLIC_DOMAIN=${PUBLIC_DOMAIN:-https://localhost}
@@ -125,6 +127,8 @@ services:
       - EMAIL_HOST_USER=${EMAIL_HOST_USER:-}
       - EMAIL_HOST_PASSWORD=${EMAIL_HOST_PASSWORD:-}
       - DEFAULT_FROM_EMAIL=${DEFAULT_FROM_EMAIL:-noreply@amardoctor.com}
+      - EMAIL_PROVIDER=${EMAIL_PROVIDER:-smtp}
+      - RESEND_API_KEY=${RESEND_API_KEY:-}
     depends_on:
       postgres:
         condition: service_healthy
@@ -163,6 +167,8 @@ services:
       - EMAIL_HOST_USER=${EMAIL_HOST_USER:-}
       - EMAIL_HOST_PASSWORD=${EMAIL_HOST_PASSWORD:-}
       - DEFAULT_FROM_EMAIL=${DEFAULT_FROM_EMAIL:-noreply@amardoctor.com}
+      - EMAIL_PROVIDER=${EMAIL_PROVIDER:-smtp}
+      - RESEND_API_KEY=${RESEND_API_KEY:-}
     depends_on:
       postgres:
         condition: service_healthy

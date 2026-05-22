@@ -67,6 +67,11 @@ EMAIL_HOST_USER=your-email@gmail.com
 EMAIL_HOST_PASSWORD=your-app-password
 DEFAULT_FROM_EMAIL=noreply@amardoctor.com
 
+# Alternatively, to use Resend API (recommended if SMTP is blocked):
+# EMAIL_PROVIDER=resend
+# RESEND_API_KEY=your-resend-api-key
+
+
 # Payments
 SSL_STORE_ID=your-store-id
 SSL_STORE_PASSWORD=your-password
@@ -154,11 +159,20 @@ ALLOWED_HOSTS=amardoc.reshad.dev
 CSRF_TRUSTED_ORIGINS=https://amardoc.reshad.dev
 CORS_ALLOWED_ORIGINS=https://amardoc.reshad.dev
 
-# Services
+# Services & Email Providers
 GEMINI_API_KEY=<your-key>
+
+# SMTP Configuration (Standard email, note that VPS providers like DigitalOcean block outbound SMTP port 25)
+EMAIL_PROVIDER=smtp
 EMAIL_HOST_USER=<prod-email>
 EMAIL_HOST_PASSWORD=<app-password>
 DEFAULT_FROM_EMAIL=noreply@amardoctor.com
+
+# Resend.com Configuration (Recommended fallback if SMTP is blocked)
+# EMAIL_PROVIDER=resend
+# RESEND_API_KEY=<your-resend-api-key>
+# DEFAULT_FROM_EMAIL=noreply@yourdomain.com
+
 SSL_STORE_ID=<store-id>
 SSL_STORE_PASSWORD=<store-password>
 

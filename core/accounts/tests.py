@@ -319,3 +319,52 @@ class TestUserProfileAPI:
         assert profile.specialization == 'Sports Medicine'
         assert float(profile.consultation_fee) == 800.00
         assert profile.is_available is True
+
+
+@pytest.mark.django_db
+class TestEmailService:
+    @pytest.fixture(autouse=True)
+    def setup_patches(self):
+        from unittest.mock import patch
+        self.patcher = patch('resend.Emails.send')
+        self.mock_resend_send = self.patcher.start()
+        yield
+        self.patcher.stop()
+
+    def test_email_service_provider_selection_resend(self, settings):
+        from accounts.services.email_service import EmailService, ResendEmailProvider
+        settings.EMAIL_PROVIDER = 'resend'
+        settings.RESEND_API_KEY = 'fake_key'
+        service = EmailService()
+        assert isinstance(service.provider, ResendEmailProvider)
+        assert service.provider.api_key == 'fake_key'
+
+    def test_email_service_provider_selection_smtp(self, settings):
+        from accounts.services.email_service import EmailService, SMTPEmailProvider
+        settings.EMAIL_PROVIDER = 'smtp'
+        service = EmailService()
+        assert isinstance(service.provider, SMTPEmailProvider)
+
+    def test_email_service_provider_selection_default(self, settings):
+        from accounts.services.email_service import EmailService, SMTPEmailProvider
+        if hasattr(settings, 'EMAIL_PROVIDER'):
+            del settings.EMAIL_PROVIDER
+        service = EmailService()
+        assert isinstance(service.provider, SMTPEmailProvider)
+
+    def test_resend_provider_send(self, settings):
+        from accounts.services.email_service import EmailService
+        settings.EMAIL_PROVIDER = 'resend'
+        settings.RESEND_API_KEY = 'fake_key'
+        settings.DEFAULT_FROM_EMAIL = 'noreply@test.com'
+        
+        service = EmailService()
+        result = service.send_registration_otp('test@example.com', '123456')
+        
+        assert result is True
+        self.mock_resend_send.assert_called_once()
+        call_args = self.mock_resend_send.call_args[0][0]
+        assert call_args['from'] == 'noreply@test.com'
+        assert call_args['to'] == 'test@example.com'
+        assert '123456' in call_args['html']
+

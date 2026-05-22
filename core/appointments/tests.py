@@ -27,8 +27,12 @@ class TestSlotGeneration:
             timezone='UTC'
         )
 
-        # Test for a specific Monday
-        test_date = date(2026, 5, 18) # This is a Monday
+        # Test for a dynamic Monday in the future (next Monday)
+        today = date.today()
+        days_ahead = 0 - today.weekday()
+        if days_ahead <= 0:
+            days_ahead += 7
+        test_date = today + timedelta(days=days_ahead)
         slots = SlotGenerationService.generate_slots(doctor, test_date)
 
         assert len(slots) == 4
@@ -46,7 +50,11 @@ class TestSlotGeneration:
             timezone='UTC'
         )
 
-        test_date = date(2026, 5, 18)
+        today = date.today()
+        days_ahead = 0 - today.weekday()
+        if days_ahead <= 0:
+            days_ahead += 7
+        test_date = today + timedelta(days=days_ahead)
         slot_start = datetime.combine(test_date, time(9, 0), tzinfo=ZoneInfo("UTC"))
         slot_end = slot_start + timedelta(minutes=30)
 
