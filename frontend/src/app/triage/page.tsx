@@ -81,9 +81,10 @@ export default function TriagePage() {
         setSessionId(session.id);
 
         // 2. Open WebSocket connection
-        const apiBase = process.env.NEXT_PUBLIC_API_URL || "http://127.0.0.1:8000";
-        const wsProtocol = apiBase.startsWith("https") ? "wss:" : "ws:";
-        const wsHost = apiBase.replace(/^https?:\/\//, "");
+        // Use window.location to derive WS URL dynamically so it always routes
+        // through the correct host (Nginx in production), regardless of env vars.
+        const wsProtocol = window.location.protocol === "https:" ? "wss:" : "ws:";
+        const wsHost = window.location.host;
         const freshToken = getAccessToken() || token;
         const socketUrl = `${wsProtocol}//${wsHost}/ws/triage/${session.id}/?token=${freshToken}`;
 

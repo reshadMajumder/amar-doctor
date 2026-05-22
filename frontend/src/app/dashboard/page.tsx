@@ -349,7 +349,14 @@ export default function Dashboard() {
                 </p>
               </div>
             </div>
-            <div className="flex gap-2">
+            <div className="flex gap-2 items-center">
+              <Button
+                onClick={() => setIsAvailabilityOpen(true)}
+                className="h-10 md:h-12 px-3 md:px-5 rounded-xl font-bold text-xs md:text-sm gap-2 shadow-sm shadow-primary/20 bg-primary hover:bg-primary/90"
+              >
+                <Clock className="w-4 h-4 shrink-0" />
+                <span className="hidden sm:inline">Set Availability</span>
+              </Button>
               <Link href="/notifications">
                 <Button variant="outline" size="icon" className="w-10 h-10 md:w-12 md:h-12 rounded-xl bg-white border relative shadow-sm">
                   <Bell className="w-5 h-5 md:w-6 md:h-6 text-slate-500" />
