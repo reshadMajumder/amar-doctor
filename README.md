@@ -1,4 +1,4 @@
-# AmarDoctor - Production Deployment Infrastructure
+# AmarDoctor - Production Deployment Infrastructure.
 
 Production-ready Docker deployment for Django Channels-based AI-assisted telemedicine platform with PostgreSQL 17, Redis, Nginx, and Celery.
 
