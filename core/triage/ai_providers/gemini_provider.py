@@ -11,7 +11,7 @@ class GeminiProvider(BaseAIProvider):
         key = self.api_key or getattr(settings, 'GEMINI_API_KEY', '')
         self.client = genai.Client(api_key=key)
         # Use pro model for complex reasoning
-        self.model_name = 'gemini-3.1-flash-lite'
+        self.model_name = 'models/gemini-3.5-flash'
 
     def generate_response(self, prompt, system_instruction=None, max_tokens=1000, temperature=0.7):
         config_kwargs = {
