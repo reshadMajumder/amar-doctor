@@ -1,27 +1,26 @@
 import json
+from importlib import import_module
 
 from django.conf import settings
 
 from .base import BaseAIProvider
-
-try:
-    from groq import Groq
-except ImportError:  # pragma: no cover - exercised only when the optional dependency is missing
-    Groq = None
 
 
 class GroqProvider(BaseAIProvider):
     def __init__(self, api_key=None):
         super().__init__(api_key)
 
-        if Groq is None:
+        try:
+            groq_module = import_module('groq')
+        except ImportError as exc:  # pragma: no cover - exercised only when the optional dependency is missing
             raise RuntimeError(
                 "The 'groq' package is required when DEFAULT_AI_PROVIDER=groq. "
                 "Install it with `pip install groq`."
-            )
+            ) from exc
 
         key = self.api_key or getattr(settings, 'GROQ_API_KEY', '')
-        self.client = Groq(api_key=key) if key else Groq()
+        groq_client = groq_module.Groq
+        self.client = groq_client(api_key=key) if key else groq_client()
         self.model_name = 'llama-3.3-70b-versatile'
 
     def _build_messages(self, prompt, system_instruction=None):

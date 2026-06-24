@@ -62,7 +62,7 @@ REDIS_CACHE_DB=1
 REDIS_CELERY_DB=0
 
 # Email & APIs
-DEFAULT_AI_PROVIDER=gemini
+DEFAULT_AI_PROVIDER=groq
 GEMINI_API_KEY=your-api-key
 GROQ_API_KEY=your-groq-api-key
 EMAIL_HOST_USER=your-email@gmail.com

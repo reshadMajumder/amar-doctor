@@ -23,7 +23,7 @@ class AITriageSession(models.Model):
     current_step = models.IntegerField(default=1)
     risk_level = models.CharField(max_length=10, choices=RISK_LEVEL_CHOICES, default='low')
     emergency_detected = models.BooleanField(default=False)
-    ai_provider = models.CharField(max_length=50, default='gemini')
+    ai_provider = models.CharField(max_length=50, default='groq')
     started_at = models.DateTimeField(auto_now_add=True)
     completed_at = models.DateTimeField(null=True, blank=True)
     updated_at = models.DateTimeField(auto_now=True)

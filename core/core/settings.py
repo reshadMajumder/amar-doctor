@@ -284,7 +284,7 @@ EMAIL_PROVIDER = os.getenv('EMAIL_PROVIDER', 'smtp')
 RESEND_API_KEY = os.getenv('RESEND_API_KEY', '')
 
 # AI Provider Settings
-DEFAULT_AI_PROVIDER = os.getenv('DEFAULT_AI_PROVIDER', 'gemini')
+DEFAULT_AI_PROVIDER = os.getenv('DEFAULT_AI_PROVIDER', 'groq')
 GEMINI_API_KEY = os.getenv('GEMINI_API_KEY', '')
 GROQ_API_KEY = os.getenv('GROQ_API_KEY', '')
 
