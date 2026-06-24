@@ -1,6 +1,7 @@
 from rest_framework import viewsets, permissions, status
 from rest_framework.response import Response
 from rest_framework.decorators import action
+from django.conf import settings
 from triage.models import AITriageSession, AIReport
 from triage.serializers import AITriageSessionSerializer, AITriageSessionDetailSerializer, AIReportSerializer
 from accounts.utils.responses import success_response, error_response
@@ -22,7 +23,10 @@ class AITriageSessionViewSet(viewsets.ModelViewSet):
 
     def create(self, request, *args, **kwargs):
         # Allow creating a new session
-        session = AITriageSession.objects.create(patient=request.user)
+        session = AITriageSession.objects.create(
+            patient=request.user,
+            ai_provider=getattr(settings, 'DEFAULT_AI_PROVIDER', 'gemini')
+        )
         serializer = self.get_serializer(session)
         return Response(success_response(data=serializer.data), status=status.HTTP_201_CREATED)
 

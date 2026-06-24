@@ -286,6 +286,7 @@ RESEND_API_KEY = os.getenv('RESEND_API_KEY', '')
 # AI Provider Settings
 DEFAULT_AI_PROVIDER = os.getenv('DEFAULT_AI_PROVIDER', 'gemini')
 GEMINI_API_KEY = os.getenv('GEMINI_API_KEY', '')
+GROQ_API_KEY = os.getenv('GROQ_API_KEY', '')
 
 # SSLCommerz Settings
 SSL_STORE_ID = os.getenv('SSL_STORE_ID')

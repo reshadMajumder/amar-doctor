@@ -10,7 +10,7 @@ class GeminiProvider(BaseAIProvider):
         # Fallback to settings if api_key not provided
         key = self.api_key or getattr(settings, 'GEMINI_API_KEY', '')
         self.client = genai.Client(api_key=key)
-        # Use pro model for complex reasoning
+        # Use the configured Gemini text model
         self.model_name = 'gemini-3.1-flash-lite'
 
     def generate_response(self, prompt, system_instruction=None, max_tokens=1000, temperature=0.7):

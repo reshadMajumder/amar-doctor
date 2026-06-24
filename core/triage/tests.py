@@ -1,10 +1,14 @@
 import pytest
+from types import SimpleNamespace
 from unittest.mock import patch, AsyncMock
 from django.contrib.auth import get_user_model
+from django.test import override_settings
 from django.urls import reverse
 from rest_framework import status
 from rest_framework.test import APIClient
 from triage.models import AITriageSession, AITriageMessage, AIReport
+from triage.ai_providers.factory import AIProviderFactory
+from triage.ai_providers.groq_provider import GroqProvider
 from triage.services.ai_orchestrator import AIOrchestrator
 from triage.services.emergency_service import EmergencyService
 from triage.services.report_service import ReportService
@@ -132,6 +136,56 @@ class TestTriageReportService:
         
         session.refresh_from_db()
         assert session.status == 'completed'
+
+
+class TestAIProviderFactoryRouting:
+    @patch('triage.ai_providers.groq_provider.Groq')
+    @override_settings(DEFAULT_AI_PROVIDER='groq')
+    def test_factory_returns_groq_provider(self, mock_groq):
+        mock_groq.return_value.chat.completions.create.return_value = SimpleNamespace(
+            choices=[SimpleNamespace(message=SimpleNamespace(content='{"ok": true}'))]
+        )
+
+        provider = AIProviderFactory.get_provider()
+
+        assert isinstance(provider, GroqProvider)
+
+    @patch('triage.ai_providers.groq_provider.Groq')
+    def test_groq_provider_generates_text(self, mock_groq):
+        mock_groq.return_value.chat.completions.create.return_value = SimpleNamespace(
+            choices=[SimpleNamespace(message=SimpleNamespace(content='Yes, that is concerning.'))]
+        )
+
+        provider = GroqProvider(api_key='test-key')
+        response = provider.generate_response(
+            prompt='I have chest pain',
+            system_instruction='You are a medical triage assistant.',
+            max_tokens=256,
+            temperature=0.3,
+        )
+
+        assert response == 'Yes, that is concerning.'
+        mock_groq.return_value.chat.completions.create.assert_called_once()
+
+        call_kwargs = mock_groq.return_value.chat.completions.create.call_args.kwargs
+        assert call_kwargs['model'] == 'llama-3.3-70b-versatile'
+        assert call_kwargs['max_completion_tokens'] == 256
+        assert call_kwargs['temperature'] == 0.3
+        assert call_kwargs['messages'][0]['role'] == 'system'
+        assert call_kwargs['messages'][1]['role'] == 'user'
+
+    @patch('triage.ai_providers.groq_provider.Groq')
+    def test_groq_provider_generates_json(self, mock_groq):
+        mock_groq.return_value.chat.completions.create.return_value = SimpleNamespace(
+            choices=[SimpleNamespace(message=SimpleNamespace(content='{"is_emergency": false, "risk_level": "low"}'))]
+        )
+
+        provider = GroqProvider(api_key='test-key')
+        response = provider.generate_json(prompt='Return JSON only')
+
+        assert response == {'is_emergency': False, 'risk_level': 'low'}
+        call_kwargs = mock_groq.return_value.chat.completions.create.call_args.kwargs
+        assert call_kwargs['response_format'] == {'type': 'json_object'}
 
 @pytest.mark.django_db
 class TestTriageAPI:

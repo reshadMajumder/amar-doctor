@@ -1,15 +1,15 @@
 from django.conf import settings
 from .gemini_provider import GeminiProvider
+from .groq_provider import GroqProvider
 
 class AIProviderFactory:
     @staticmethod
     def get_provider(provider_name=None):
-        name = provider_name or getattr(settings, 'DEFAULT_AI_PROVIDER', 'gemini')
+        name = (provider_name or getattr(settings, 'DEFAULT_AI_PROVIDER', 'gemini')).strip().lower()
         
-        if name.lower() == 'gemini':
+        if name == 'gemini':
             return GeminiProvider()
-        # elif name.lower() == 'openai':
-        #     from .openai_provider import OpenAIProvider
-        #     return OpenAIProvider()
+        if name == 'groq':
+            return GroqProvider()
         
         raise ValueError(f"Unknown AI Provider: {name}")
