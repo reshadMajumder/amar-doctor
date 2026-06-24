@@ -1012,12 +1012,12 @@ export default function Dashboard() {
 
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
           {/* Appointments */}
-          <section className="lg:col-span-2 space-y-6">
+          <section id="consultations" className="lg:col-span-2 space-y-6">
             <div className="flex justify-between items-center px-1">
               <h2 className="text-sm md:text-lg font-bold flex items-center gap-2 text-slate-900">
                 <Calendar className="w-5 h-5 text-primary" /> Consultations
               </h2>
-              <Link href="/consultations" className="text-[10px] md:text-sm font-bold text-primary hover:underline">View Schedule</Link>
+              <Link href="#consultations" className="text-[10px] md:text-sm font-bold text-primary hover:underline">View Schedule</Link>
             </div>
 
             {/* Navigation Tabs */}

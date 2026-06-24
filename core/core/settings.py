@@ -217,8 +217,9 @@ if not DEBUG:
     SECURE_CONTENT_SECURITY_POLICY = {
         'default-src': ("'self'",),
         'style-src': ("'self'", "'unsafe-inline'"),
-        'script-src': ("'self'", "'unsafe-inline'"),
+        'script-src': ("'self'", "'unsafe-inline'", "https://static.cloudflareinsights.com"),
         'img-src': ("'self'", "data:", "https:"),
+        'connect-src': ("'self'", "wss:", "https:", "https://cloudflareinsights.com"),
     }
     SECURE_SSL_REDIRECT = True
     SESSION_COOKIE_SECURE = True

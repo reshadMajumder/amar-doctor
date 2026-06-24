@@ -1,4 +1,4 @@
-# AmarDoctor - Production Deployment Infrastructure.
+# AmarDoctor - Production Deployment Infrastructure
 
 Production-ready Docker deployment for Django Channels-based AI-assisted telemedicine platform with PostgreSQL 17, Redis, Nginx, and Celery.
 
@@ -188,17 +188,11 @@ Deploy the production services using docker compose:
 # Start all services in the background and build images if not already built
 docker compose -f docker-compose.prod.yml up --build -d
 
-# IMPORTANT: Since Nginx caches upstream container IPs at startup, if the 'app' container is 
-# rebuilt or restarted, you MUST restart Nginx to resolve the new IP address:
-docker compose -f docker-compose.prod.yml restart nginx
-
 # Verify containers are running
 docker compose -f docker-compose.prod.yml ps
 ```
 
 Expected status: All services should be **Up** and show as **healthy** (or starting up).
-> [!NOTE]
-> If you notice that client requests or logs are not hitting the Django server after a build/redeploy, Nginx is likely still routing traffic to the old `app` container IP. Running `docker compose -f docker-compose.prod.yml restart nginx` resolves this immediately.
 
 ### 4. Post-Deployment Setup
 
