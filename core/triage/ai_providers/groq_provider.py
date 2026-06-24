@@ -51,7 +51,21 @@ class GroqProvider(BaseAIProvider):
         if response_format is not None:
             request_kwargs['response_format'] = response_format
 
-        return self.client.chat.completions.create(**request_kwargs)
+        try:
+            return self.client.chat.completions.create(**request_kwargs)
+        except Exception as e:
+            fallback_model = 'meta-llama/llama-4-scout-17b-16e-instruct'
+            # Prevent infinite recursion if the fallback model is already active
+            if request_kwargs['model'] == fallback_model:
+                raise e
+            import logging
+            logger = logging.getLogger(__name__)
+            logger.warning(
+                f"Groq API call failed with model '{self.model_name}': {e}. "
+                f"Attempting fallback to '{fallback_model}'."
+            )
+            request_kwargs['model'] = fallback_model
+            return self.client.chat.completions.create(**request_kwargs)
 
     @staticmethod
     def _extract_text(completion):

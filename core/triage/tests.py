@@ -187,6 +187,32 @@ class TestAIProviderFactoryRouting:
         call_kwargs = mock_groq.return_value.chat.completions.create.call_args.kwargs
         assert call_kwargs['response_format'] == {'type': 'json_object'}
 
+    @patch('triage.ai_providers.groq_provider.Groq')
+    def test_groq_provider_fallback_on_failure(self, mock_groq):
+        mock_groq.return_value.chat.completions.create.side_effect = [
+            Exception("Model overloaded"),
+            SimpleNamespace(
+                choices=[SimpleNamespace(message=SimpleNamespace(content="Fallback response"))]
+            )
+        ]
+
+        provider = GroqProvider(api_key='test-key')
+        response = provider.generate_response(
+            prompt='I have chest pain',
+            system_instruction='You are a medical triage assistant.',
+            max_tokens=256,
+            temperature=0.3,
+        )
+
+        assert response == 'Fallback response'
+        assert mock_groq.return_value.chat.completions.create.call_count == 2
+        
+        first_call_kwargs = mock_groq.return_value.chat.completions.create.call_args_list[0].kwargs
+        assert first_call_kwargs['model'] == 'llama-3.3-70b-versatile'
+        
+        second_call_kwargs = mock_groq.return_value.chat.completions.create.call_args_list[1].kwargs
+        assert second_call_kwargs['model'] == 'meta-llama/llama-4-scout-17b-16e-instruct'
+
 @pytest.mark.django_db
 class TestTriageAPI:
     def test_create_session(self, auth_client):
