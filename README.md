@@ -63,7 +63,6 @@ REDIS_CELERY_DB=0
 
 # Email & APIs
 DEFAULT_AI_PROVIDER=groq
-GEMINI_API_KEY=your-api-key
 GROQ_API_KEY=your-groq-api-key
 EMAIL_HOST_USER=your-email@gmail.com
 EMAIL_HOST_PASSWORD=your-app-password
@@ -163,7 +162,6 @@ CORS_ALLOWED_ORIGINS=https://amardoc.reshad.dev
 
 # Services & Email Providers
 DEFAULT_AI_PROVIDER=groq
-GEMINI_API_KEY=<your-key>
 GROQ_API_KEY=<your-groq-key>
 
 # SMTP Configuration (Standard email, note that VPS providers like DigitalOcean block outbound SMTP port 25)
@@ -496,7 +494,6 @@ CSRF_TRUSTED_ORIGINS=https://amardoc.reshad.dev
 
 ### Optional
 ```
-GEMINI_API_KEY
 EMAIL_HOST_USER
 EMAIL_HOST_PASSWORD
 SSL_STORE_ID

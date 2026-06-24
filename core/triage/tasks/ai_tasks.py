@@ -1,9 +1,9 @@
 from celery import shared_task
-from google.genai.errors import ServerError
+from groq import APIConnectionError, APITimeoutError, InternalServerError, RateLimitError
 from triage.services.ai_orchestrator import AIOrchestrator
 
 @shared_task(
-    autoretry_for=(ServerError,),
+    autoretry_for=(APIConnectionError, APITimeoutError, InternalServerError, RateLimitError),
     retry_backoff=True,
     max_retries=5,
     retry_jitter=True

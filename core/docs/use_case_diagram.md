@@ -11,7 +11,7 @@ This document provides a comprehensive UML Use Case Diagram and detailed specifi
 | 👤 | **Patient** | Primary (Initiator) | The client seeking medical consultation. Can register, run AI triage, book appointments, make payments, participate in consultations, view prescriptions, manage their wallet, and file disputes. |
 | 🩺 | **Doctor** | Primary (Practitioner) | The medical professional providing services. Can register, submit BMDC verification documents, configure scheduling availability, consult with patients, draft and digitally sign prescriptions, and withdraw earnings. |
 | 🔑 | **Admin** | Primary (Operations) | Platform administrator who manages doctor verification, user suspensions, dispute investigations, global configurations, and tracks financial health. |
-| 🤖 | **AI Engine (Gemini)** | Supporting (System) | The AI subsystem that parses patient symptoms, leads the diagnostic triage question loop, and generates the structured triage report. |
+| 🤖 | **AI Engine (Groq)** | Supporting (System) | The AI subsystem that parses patient symptoms, leads the diagnostic triage question loop, and generates the structured triage report. |
 | 💳 | **SSLCommerz Gateway** | Supporting (External) | The external payment processor responsible for capturing fees, holding funds in escrow, and handling refunds. |
 
 ---
@@ -28,7 +28,7 @@ flowchart LR
 
     %% Supporting Actors (Right/Bottom Side)
     Admin["🔑 Admin"]:::admin
-    AIEngine["🤖 AI Engine\n(Gemini)"]:::system
+    AIEngine["🤖 AI Engine\n(Groq)"]:::system
     Gateway["💳 SSLCommerz\n(Payment Gateway)"]:::system
 
     %% Styling Definitions

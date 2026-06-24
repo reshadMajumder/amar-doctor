@@ -32,7 +32,7 @@ flowchart TD
     subgraph Triage["2. AI Symptom Triage"]
         C --> J[Start AITriageSession]:::patient
         J --> K[Submit Symptoms]:::patient
-        K --> L[Gemini Prompt & Q&A Loop]:::system
+        K --> L[Groq Prompt & Q&A Loop]:::system
         L --> M[AITriageMessage History Recorded]:::system
         M --> N[Analyze Risk Level]:::system
         N --> O[Generate AIReport]:::system

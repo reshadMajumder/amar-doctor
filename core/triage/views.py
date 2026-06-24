@@ -25,7 +25,7 @@ class AITriageSessionViewSet(viewsets.ModelViewSet):
         # Allow creating a new session
         session = AITriageSession.objects.create(
             patient=request.user,
-            ai_provider=getattr(settings, 'DEFAULT_AI_PROVIDER', 'gemini')
+            ai_provider=getattr(settings, 'DEFAULT_AI_PROVIDER', 'groq')
         )
         serializer = self.get_serializer(session)
         return Response(success_response(data=serializer.data), status=status.HTTP_201_CREATED)

@@ -415,7 +415,7 @@ The platform consists of several module areas:
 *   **[AppointmentStatusLog](file:///e:/personal-projects/amardoctor/core/appointments/models/logs.py#L5)**: Logs all status transitions to track workflow history.
 
 ### AI Triage (`triage`)
-*   **[AITriageSession](file:///e:/personal-projects/amardoctor/core/triage/models.py#L4)**: The interactive chat session with Gemini/AI to diagnose symptom risk severity.
+*   **[AITriageSession](file:///e:/personal-projects/amardoctor/core/triage/models.py#L4)**: The interactive chat session with Groq/AI to diagnose symptom risk severity.
 *   **[AITriageMessage](file:///e:/personal-projects/amardoctor/core/triage/models.py#L34)**: Message history of triage chat (questions, symptom details, etc.).
 *   **[AIReport](file:///e:/personal-projects/amardoctor/core/triage/models.py#L63)**: Extracted summary reports with a confidence score, triage level, and recommended specialty, linked to an appointment once booked.
 
