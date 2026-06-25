@@ -1,4 +1,4 @@
-# AmarDoctor - Production Deployment Infrastructure
+9# AmarDoctor - Production Deployment Infrastructure
 
 Production-ready Docker deployment for Django Channels-based AI-assisted telemedicine platform with PostgreSQL 17, Redis, Nginx, and Celery.
 
@@ -118,7 +118,7 @@ docker compose -f docker-compose.dev.yml exec app python manage.py createsuperus
 
 #### Get Cloudflare SSL Certificates
 
-1. Log in to the Cloudflare Dashboard → select your domain → **SSL/TLS** → **Origin Server**.
+1. Log in to the Cloudflare Dashboard → select your domain → **SSL/TLS** → **Origin Server**...
 2. Click **Create Certificate**.
 3. Keep the default settings (private key type RSA, certificates list matching your domain) and click **Create**.
 4. Copy the certificate content and save it as **`cert.pem`** in the `ssl/` folder at the project root.
