@@ -333,11 +333,20 @@ export default function ChatRoomPage() {
       return;
     }
 
-    const wsScheme = window.location.protocol === "https:" ? "wss:" : "ws:";
+    // Derive WS URL from NEXT_PUBLIC_API_URL if present, otherwise fallback dynamically
+    const apiBase = process.env.NEXT_PUBLIC_API_URL || "";
+    let wsScheme = window.location.protocol === "https:" ? "wss:" : "ws:";
     let wsHost = window.location.host;
-    // Fallback support for direct Next.js development server on port 9002
-    if (wsHost === "localhost:9002" || wsHost === "127.0.0.1:9002") {
-      wsHost = "localhost:8000";
+
+    if (apiBase.startsWith("http://") || apiBase.startsWith("https://")) {
+      const url = new URL(apiBase);
+      wsHost = url.host;
+      wsScheme = url.protocol === "https:" ? "wss:" : "ws:";
+    } else {
+      // Fallback support for direct Next.js development server on port 9002
+      if (wsHost === "localhost:9002" || wsHost === "127.0.0.1:9002") {
+        wsHost = "localhost:8000";
+      }
     }
     const wsUrl = `${wsScheme}//${wsHost}/ws/chat/${roomId}/?token=${token}`;
 

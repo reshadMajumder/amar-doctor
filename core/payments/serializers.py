@@ -40,7 +40,7 @@ class CreatePaymentSerializer(serializers.ModelSerializer):
         return payment
 
 class PaymentDetailSerializer(serializers.ModelSerializer):
-    appointment = AppointmentSerializer()
+    appointment = AppointmentSerializer(allow_null=True, read_only=True)
 
     class Meta:
         model = PaymentTransaction

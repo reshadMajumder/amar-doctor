@@ -173,6 +173,7 @@ export default function AuthPage() {
         title: "Error",
         description: err.message || "An error occurred during authentication."
       });
+      setLoading(false);
     } finally {
       // In success redirect flows, loading state persists until routing takes over
       if (step !== "otp-verify" && !(mode === "login" && loginMethod === "password")) {

@@ -39,6 +39,24 @@ class EscrowService:
 
         # Initialize wallets if they don't exist
         WalletService.hold_for_escrow(appointment)
+
+        # Trigger DB notifications for booking request
+        from notifications.services.notification_service import NotificationService
+        try:
+            NotificationService.create_notification(
+                recipient=appointment.patient,
+                n_type='booking',
+                title='Appointment Booked',
+                message=f"Your appointment with Dr. {appointment.doctor.full_name} has been booked. Fee of ৳{appointment.consultation_fee} is held in escrow."
+            )
+            NotificationService.create_notification(
+                recipient=appointment.doctor,
+                n_type='booking',
+                title='New Appointment Request',
+                message=f"Patient {appointment.patient.full_name} has requested an appointment."
+            )
+        except Exception as e:
+            print("Error creating gateway booking notifications:", e)
         
         return payment_tx
 
@@ -87,6 +105,18 @@ class EscrowService:
         payment_tx.released_at = timezone.now()
         payment_tx.save()
 
+        # Notify Doctor
+        from notifications.services.notification_service import NotificationService
+        try:
+            NotificationService.create_notification(
+                recipient=appointment.doctor,
+                n_type='payment',
+                title='Consultation Fee Released',
+                message=f"Consultation fee of ৳{doctor_amount} has been released to your wallet for appointment with {appointment.patient.full_name}."
+            )
+        except Exception as e:
+            print("Error creating release payment notification:", e)
+
         appointment.payment_status = 'released'
         appointment.save()
 
@@ -123,6 +153,18 @@ class EscrowService:
         payment_tx.refunded_at = timezone.now()
         payment_tx.metadata['refund_reason'] = reason
         payment_tx.save()
+
+        # Notify Patient
+        from notifications.services.notification_service import NotificationService
+        try:
+            NotificationService.create_notification(
+                recipient=appointment.patient,
+                n_type='payment',
+                title='Refund Credited',
+                message=f"Refund of ৳{payment_tx.amount} has been credited to your wallet for the cancelled appointment with Dr. {appointment.doctor.full_name}."
+            )
+        except Exception as e:
+            print("Error creating refund payment notification:", e)
 
         appointment.payment_status = 'refunded'
         appointment.save()

@@ -206,6 +206,161 @@ export default function Dashboard() {
   const [loadingAppointments, setLoadingAppointments] = useState(false);
   const [actionInProgress, setActionInProgress] = useState<string | null>(null);
   const [activeTab, setActiveTab] = useState<'pending' | 'active' | 'history'>('pending');
+  const [walletBalance, setWalletBalance] = useState<string | null>(null);
+  const [notifications, setNotifications] = useState<any[]>([]);
+  const [isNotifOpen, setIsNotifOpen] = useState(false);
+
+  useEffect(() => {
+    if (!user) return;
+    async function fetchWallet() {
+      try {
+        const res = await api.get("/api/v1/wallets/me/");
+        if (res) {
+          setWalletBalance(res.available_balance || "0.00");
+        }
+      } catch (err) {
+        console.error("Failed to load wallet balance", err);
+      }
+    }
+    fetchWallet();
+  }, [user]);
+
+  useEffect(() => {
+    if (!user) return;
+    async function fetchNotifications() {
+      try {
+        const res = await api.get('/api/v1/notifications/');
+        const data = res.data || res;
+        if (data && Array.isArray(data.results)) {
+          setNotifications(data.results);
+        } else if (Array.isArray(data)) {
+          setNotifications(data);
+        }
+      } catch (err) {
+        console.error("Failed to fetch notifications", err);
+      }
+    }
+    fetchNotifications();
+
+    const interval = setInterval(fetchNotifications, 10000);
+    return () => clearInterval(interval);
+  }, [user]);
+
+  const handleMarkAllRead = async () => {
+    try {
+      await api.post('/api/v1/notifications/read-all/');
+      setNotifications(prev => prev.map(n => ({ ...n, is_read: true })));
+    } catch (err) {
+      console.error("Failed to mark all as read", err);
+    }
+  };
+
+  const handleReadNotif = async (id: number) => {
+    try {
+      await api.patch(`/api/v1/notifications/${id}/read/`);
+      setNotifications(prev => prev.map(n => n.id === id ? { ...n, is_read: true } : n));
+    } catch (err) {
+      console.error("Failed to mark notification as read", err);
+    }
+  };
+
+  function renderNotificationsDropdown() {
+    const unreadCount = notifications.filter(n => !n.is_read).length;
+    return (
+      <div className="relative">
+        <Button 
+          variant="ghost" 
+          size="icon" 
+          onClick={() => setIsNotifOpen(!isNotifOpen)}
+          className="rounded-xl relative w-10 h-10 md:w-12 md:h-12 bg-white border shadow-sm"
+        >
+          <Bell className="w-5 h-5 md:w-6 md:h-6 text-slate-500" />
+          {unreadCount > 0 && (
+            <span className="absolute top-1.5 right-1.5 w-4 h-4 bg-destructive text-[8px] font-extrabold text-white flex items-center justify-center rounded-full border border-white">
+              {unreadCount}
+            </span>
+          )}
+        </Button>
+
+        {isNotifOpen && (
+          <div className="absolute right-0 mt-2 w-80 md:w-96 bg-white rounded-3xl border border-slate-100 shadow-2xl z-50 overflow-hidden py-4 animate-in fade-in slide-in-from-top-2 duration-200">
+            <div className="px-5 pb-3 border-b border-slate-50 flex justify-between items-center">
+              <span className="font-extrabold text-sm text-slate-900">Recent Notifications</span>
+              {unreadCount > 0 && (
+                <button 
+                  onClick={handleMarkAllRead}
+                  className="text-[10px] font-bold text-primary uppercase tracking-wider hover:underline"
+                >
+                  Mark all read
+                </button>
+              )}
+            </div>
+            
+            <div className="max-h-[350px] overflow-y-auto divide-y divide-slate-50">
+              {notifications.length === 0 ? (
+                <div className="p-8 text-center text-slate-400 text-xs font-semibold">
+                  No notifications yet
+                </div>
+              ) : (
+                notifications.map((notif) => {
+                  const dateStr = new Date(notif.created_at).toLocaleDateString("en-US", { month: "short", day: "numeric" });
+                  return (
+                    <div 
+                      key={notif.id} 
+                      onClick={() => {
+                        if (!notif.is_read) handleReadNotif(notif.id);
+                      }}
+                      className={cn(
+                        "p-4 flex gap-3 hover:bg-slate-50/85 transition-all cursor-pointer text-left",
+                        !notif.is_read ? "bg-primary/[0.02]" : ""
+                      )}
+                    >
+                      <div className={cn(
+                        "w-8 h-8 rounded-xl flex items-center justify-center shrink-0 mt-0.5",
+                        notif.notification_type === 'booking' ? "bg-blue-50 text-blue-500" :
+                        notif.notification_type === 'payment' ? "bg-green-50 text-green-500" : "bg-slate-50 text-slate-500"
+                      )}>
+                        {notif.notification_type === 'booking' ? <Calendar className="w-4 h-4" /> : <Wallet className="w-4 h-4" />}
+                      </div>
+                      <div className="flex-1 min-w-0">
+                        <div className="flex justify-between items-start mb-0.5 gap-2">
+                          <span className={cn(
+                            "text-xs block font-bold text-slate-900 truncate",
+                            !notif.is_read ? "text-primary-dark" : "font-semibold"
+                          )}>
+                            {notif.title}
+                          </span>
+                          <span className="text-[8px] font-bold text-slate-400 shrink-0 uppercase tracking-widest">
+                            {dateStr}
+                          </span>
+                        </div>
+                        <p className="text-[10px] text-slate-600 leading-normal line-clamp-2">
+                          {notif.message}
+                        </p>
+                      </div>
+                      {!notif.is_read && (
+                        <div className="w-1.5 h-1.5 rounded-full bg-primary shrink-0 self-center" />
+                      )}
+                    </div>
+                  );
+                })
+              )}
+            </div>
+
+            <div className="px-5 pt-3 border-t border-slate-50 text-center">
+              <Link 
+                href="/notifications" 
+                onClick={() => setIsNotifOpen(false)}
+                className="text-xs font-bold text-primary hover:underline block"
+              >
+                View All Notifications
+              </Link>
+            </div>
+          </div>
+        )}
+      </div>
+    );
+  }
 
   useEffect(() => {
     if (!user) return;
@@ -362,14 +517,7 @@ export default function Dashboard() {
                 <Clock className="w-4 h-4 shrink-0" />
                 <span className="hidden sm:inline">Set Availability</span>
               </Button>
-              <Link href="/notifications">
-                <Button variant="outline" size="icon" className="w-10 h-10 md:w-12 md:h-12 rounded-xl bg-white border relative shadow-sm">
-                  <Bell className="w-5 h-5 md:w-6 md:h-6 text-slate-500" />
-                  {pendingAppointments.length > 0 && (
-                    <span className="absolute top-2.5 right-2.5 w-2 h-2 bg-destructive border-2 border-white rounded-full animate-pulse" />
-                  )}
-                </Button>
-              </Link>
+              {renderNotificationsDropdown()}
             </div>
           </header>
 
@@ -922,12 +1070,7 @@ export default function Dashboard() {
             </div>
           </div>
           <div className="flex gap-2">
-            <Link href="/notifications">
-              <Button variant="ghost" size="icon" className="rounded-xl relative w-10 h-10 md:w-12 md:h-12 bg-white border shadow-sm">
-                <Bell className="w-5 h-5 md:w-6 md:h-6 text-slate-500" />
-                <span className="absolute top-2.5 right-2.5 w-2 h-2 bg-destructive border-2 border-white rounded-full" />
-              </Button>
-            </Link>
+            {renderNotificationsDropdown()}
           </div>
         </header>
 
@@ -939,7 +1082,7 @@ export default function Dashboard() {
                 <div className="relative z-10">
                   <div className="text-[9px] md:text-xs font-bold text-white/70 uppercase tracking-tighter md:tracking-widest mb-1 md:mb-2">Wallet Balance</div>
                   <div className="text-xl md:text-4xl font-bold flex items-center justify-between">
-                    ৳ 700
+                    ৳ {walletBalance !== null ? parseFloat(walletBalance).toFixed(2) : "..."}
                     <Link href="/wallet">
                       <Plus className="w-4 h-4 md:w-8 md:h-8 bg-white/20 rounded-md p-0.5" />
                     </Link>

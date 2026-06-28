@@ -84,6 +84,8 @@ export default function DoctorsPage() {
   const [filter, setFilter] = useState("All");
   const [doctors, setDoctors] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
+  const [page, setPage] = useState(1);
+  const [totalPages, setTotalPages] = useState(1);
 
   const [specializations, setSpecializations] = useState<string[]>(["All", "General Physician", "Pediatrics", "Cardiology", "Gynecology"]);
 
@@ -103,6 +105,11 @@ export default function DoctorsPage() {
     fetchSpecialties();
   }, []);
 
+  // Reset page when search or filter changes
+  useEffect(() => {
+    setPage(1);
+  }, [search, filter]);
+
   useEffect(() => {
     async function fetchDoctors() {
       try {
@@ -116,21 +123,29 @@ export default function DoctorsPage() {
         if (search) {
           params.push(`search=${encodeURIComponent(search)}`);
         }
+        
+        // Request pagination parameters
+        params.push(`page=${page}`);
+        params.push(`page_size=4`);
+
         if (params.length > 0) {
           url += `?${params.join("&")}`;
         }
 
         const res = await api.get(url);
-        const list = res.data || res;
+        const paginatedData = res.data;
 
-        if (Array.isArray(list)) {
-          setDoctors(list.map(mapBackendDoctorToFrontend));
+        if (paginatedData && Array.isArray(paginatedData.results)) {
+          setDoctors(paginatedData.results.map(mapBackendDoctorToFrontend));
+          setTotalPages(paginatedData.total_pages || 1);
         } else {
           setDoctors([]);
+          setTotalPages(1);
         }
       } catch (err) {
         console.error("Failed to fetch backend doctors", err);
         setDoctors([]);
+        setTotalPages(1);
       } finally {
         setLoading(false);
       }
@@ -142,7 +157,7 @@ export default function DoctorsPage() {
     }, 300);
 
     return () => clearTimeout(handler);
-  }, [filter, search]);
+  }, [filter, search, page]);
 
   return (
     <div className="min-h-screen bg-[#f6f8fa]">
@@ -251,6 +266,35 @@ export default function DoctorsPage() {
                 </CardContent>
               </Card>
             ))}
+
+            {/* Pagination Controls */}
+            {totalPages > 1 && (
+              <div className="flex items-center justify-center gap-4 mt-8 pt-4">
+                <Button 
+                  variant="outline" 
+                  size="sm"
+                  onClick={() => setPage(prev => Math.max(prev - 1, 1))}
+                  disabled={page === 1}
+                  className="rounded-xl h-10 px-4 font-bold text-xs shadow-sm bg-white"
+                >
+                  Previous
+                </Button>
+                
+                <span className="text-xs font-bold text-slate-500 uppercase tracking-wider">
+                  Page {page} of {totalPages}
+                </span>
+
+                <Button 
+                  variant="outline" 
+                  size="sm"
+                  onClick={() => setPage(prev => Math.min(prev + 1, totalPages))}
+                  disabled={page === totalPages}
+                  className="rounded-xl h-10 px-4 font-bold text-xs shadow-sm bg-white"
+                >
+                  Next
+                </Button>
+              </div>
+            )}
           </div>
         )}
 

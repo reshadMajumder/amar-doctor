@@ -13,7 +13,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { 
   Stethoscope, Calendar as CalendarIcon, Clock, 
   Video, MessageSquare, ChevronRight, ArrowLeft,
-  FileText, CheckCircle2, Wallet, Loader2
+  FileText, CheckCircle2, Wallet, Loader2, CreditCard
 } from "lucide-react";
 
 import { cn } from "@/lib/utils";
@@ -115,8 +115,25 @@ function BookingContent() {
   const [isBooking, setIsBooking] = useState(false);
   const [slots, setSlots] = useState<any[]>([]);
   const [loadingSlots, setLoadingSlots] = useState(false);
+  const [loadingDoctor, setLoadingDoctor] = useState(true);
+  const [walletBalance, setWalletBalance] = useState<string | null>(null);
+  const [paymentMethod, setPaymentMethod] = useState<"direct" | "wallet">("direct");
   // Track whether this is the first slot fetch (from URL params) so we don't clear preselected slot
   const isInitialLoad = useRef(true);
+
+  useEffect(() => {
+    async function fetchWallet() {
+      try {
+        const res = await api.get("/api/v1/wallets/me/");
+        if (res) {
+          setWalletBalance(res.available_balance || "0.00");
+        }
+      } catch (err) {
+        console.error("Failed to load wallet balance", err);
+      }
+    }
+    fetchWallet();
+  }, []);
 
   useEffect(() => {
     const paramDate = searchParams.get("date");
@@ -136,8 +153,12 @@ function BookingContent() {
 
   useEffect(() => {
     async function loadDoctor() {
-      if (!docId) return;
+      if (!docId) {
+        setLoadingDoctor(false);
+        return;
+      }
       try {
+        setLoadingDoctor(true);
         const res = await api.get(`/api/v1/auth/doctors/?doctor_id=${docId}`);
         const list = res.data || res;
         if (Array.isArray(list) && list.length > 0) {
@@ -148,6 +169,8 @@ function BookingContent() {
       } catch (err) {
         console.error("Failed to load doctor from DB", err);
         setDoctor(null);
+      } finally {
+        setLoadingDoctor(false);
       }
     }
 
@@ -201,6 +224,21 @@ function BookingContent() {
       return;
     }
 
+    // Client-side wallet balance check
+    if (paymentMethod === 'wallet' && walletBalance !== null) {
+      const fee = parseFloat(doctor.fee.replace(/[^\d.]/g, '')) || 0;
+      const totalAmount = fee + 20; // fee + service charge
+      const currentBalance = parseFloat(walletBalance) || 0;
+      if (currentBalance < totalAmount) {
+        toast({
+          title: "Insufficient Balance",
+          description: "Please top up your wallet or use Direct Payment.",
+          variant: "destructive"
+        });
+        return;
+      }
+    }
+
     try {
       setIsBooking(true);
 
@@ -225,23 +263,35 @@ function BookingContent() {
       }
 
       const paymentPayload = {
-        appointment_id: appointment.id
+        appointment_id: appointment.id,
+        payment_method: paymentMethod
       };
 
       const paymentResponse = await api.post("/api/v1/payments/", paymentPayload);
       const payment = paymentResponse.data || paymentResponse;
 
-      if (payment && payment.payment_url) {
+      if (paymentMethod === 'wallet') {
         toast({
-          title: "Redirecting to Payment Gateway",
-          description: "Please complete your payment securely via SSLCommerz."
+          title: "Booking Successful",
+          description: "Consultation booked successfully using wallet balance!"
         });
         
         setTimeout(() => {
-          window.location.href = payment.payment_url;
-        }, 1000);
+          router.push("/dashboard");
+        }, 1500);
       } else {
-        throw new Error("Payment session initialization failed.");
+        if (payment && payment.payment_url) {
+          toast({
+            title: "Redirecting to Payment Gateway",
+            description: "Please complete your payment securely via SSLCommerz."
+          });
+          
+          setTimeout(() => {
+            window.location.href = payment.payment_url;
+          }, 1000);
+        } else {
+          throw new Error("Payment session initialization failed.");
+        }
       }
 
     } catch (err: any) {
@@ -256,13 +306,24 @@ function BookingContent() {
     }
   };
 
+  if (loadingDoctor) {
+    return (
+      <div className="min-h-screen flex items-center justify-center p-6 text-center bg-[#f6f8fa]">
+        <div className="space-y-4 flex flex-col items-center">
+          <Loader2 className="w-10 h-10 animate-spin text-primary" />
+          <p className="text-xs font-bold text-slate-400 uppercase tracking-widest">Retrieving specialist credentials...</p>
+        </div>
+      </div>
+    );
+  }
+
   if (!doctor) {
     return (
-      <div className="min-h-screen flex items-center justify-center p-6 text-center">
+      <div className="min-h-screen flex items-center justify-center p-6 text-center bg-[#f6f8fa]">
         <div className="space-y-4">
           <Stethoscope className="w-12 h-12 text-slate-300 mx-auto" />
-          <h2 className="text-xl font-bold">Doctor not found</h2>
-          <Button onClick={() => router.push('/doctors')}>Browse Doctors</Button>
+          <h2 className="text-xl font-bold text-slate-800">Doctor not found</h2>
+          <Button onClick={() => router.push('/doctors')} className="rounded-xl px-6">Browse Doctors</Button>
         </div>
       </div>
     );
@@ -459,12 +520,43 @@ function BookingContent() {
                 </div>
               </div>
 
-              <div className="bg-slate-50 p-4 rounded-2xl border border-dashed border-slate-200">
+               <div className="bg-slate-50 p-4 rounded-2xl border border-dashed border-slate-200">
                 <div className="flex items-center gap-3 text-slate-600 mb-2">
                   <Wallet className="w-5 h-5" />
                   <span className="text-sm font-bold">Wallet Balance</span>
                 </div>
-                <div className="text-lg font-bold">৳ 700.00</div>
+                <div className="text-lg font-bold">৳ {walletBalance !== null ? parseFloat(walletBalance).toFixed(2) : "..."}</div>
+              </div>
+
+              {/* Payment Method Selector */}
+              <div className="space-y-3 pt-2">
+                <Label className="text-xs font-bold text-slate-400 uppercase tracking-widest block mb-2">Payment Method</Label>
+                <RadioGroup 
+                  defaultValue={paymentMethod} 
+                  onValueChange={(v) => setPaymentMethod(v as any)}
+                  className="grid grid-cols-2 gap-3"
+                >
+                  <div className="flex items-center">
+                    <RadioGroupItem value="wallet" id="pay_wallet" className="peer sr-only" />
+                    <Label
+                      htmlFor="pay_wallet"
+                      className="flex-1 flex flex-col items-center justify-center p-3 rounded-xl border border-slate-200 peer-data-[state=checked]:border-primary peer-data-[state=checked]:bg-primary/5 cursor-pointer text-center hover:bg-slate-50 transition-all h-full"
+                    >
+                      <Wallet className="w-4 h-4 text-primary mb-1" />
+                      <span className="text-[10px] font-bold">Pay with Wallet</span>
+                    </Label>
+                  </div>
+                  <div className="flex items-center">
+                    <RadioGroupItem value="direct" id="pay_direct" className="peer sr-only" />
+                    <Label
+                      htmlFor="pay_direct"
+                      className="flex-1 flex flex-col items-center justify-center p-3 rounded-xl border border-slate-200 peer-data-[state=checked]:border-primary peer-data-[state=checked]:bg-primary/5 cursor-pointer text-center hover:bg-slate-50 transition-all h-full"
+                    >
+                      <CreditCard className="w-4 h-4 text-primary mb-1" />
+                      <span className="text-[10px] font-bold">Direct Pay</span>
+                    </Label>
+                  </div>
+                </RadioGroup>
               </div>
 
               <Button 

@@ -83,12 +83,17 @@ PUBLIC_DOMAIN=http://localhost:8000
 
 ### 2. Start Services
 
-```bash
-# Main services (app, postgres, redis, nginx)
-docker compose -f docker-compose.dev.yml up --build
+To start all development services (databases, application, workers, and nginx) with a single command:
 
-# In another terminal, start workers
-docker compose -f docker-compose.dev.yml --profile worker up -d
+```bash
+docker compose -f docker-compose.dev.yml --profile app --profile worker up --build
+```
+
+Alternatively, you can run the helper script in your terminal:
+
+```bash
+chmod +x dev.sh
+./dev.sh
 ```
 
 ### 3. Access Application
@@ -103,6 +108,159 @@ docker compose -f docker-compose.dev.yml --profile worker up -d
 docker compose -f docker-compose.dev.yml exec app python manage.py migrate
 docker compose -f docker-compose.dev.yml exec app python manage.py createsuperuser
 ```
+
+---
+
+## Running Without Docker (Local Development)
+
+If you prefer to run the backend and frontend services directly on your local machine without Docker, follow the step-by-step instructions below.
+
+### Prerequisites
+- **Python 3.10+** (Django 6.0 compatibility)
+- **Node.js 18+** & **npm** (for the Next.js frontend)
+- **PostgreSQL 17** (or compatible local database)
+- **Redis Server** (for caching, Django Channels layer, and Celery backend)
+
+---
+
+### Step 1: Install and Start PostgreSQL
+
+#### 1. Install PostgreSQL
+* **Windows**: Download and install PostgreSQL from the [official website](https://www.postgresql.org/download/windows/).
+* **macOS**: Install using Homebrew: `brew install postgresql@17`
+* **Linux (Ubuntu/Debian)**: `sudo apt update && sudo apt install postgresql postgresql-contrib`
+
+#### 2. Create the Database
+Start the PostgreSQL server and create a database named `amardoctor` (you can use pgAdmin or the `psql` command line):
+```sql
+CREATE DATABASE amardoctor;
+```
+
+---
+
+### Step 2: Install and Start Redis
+
+#### 1. Start Redis Server
+* **Windows**: Run Redis using WSL (Windows Subsystem for Linux), or install native Windows alternatives like [Memurai](https://www.memurai.com/) or the legacy native Redis port.
+* **macOS**: `brew services start redis` or run `redis-server`
+* **Linux (Ubuntu/Debian)**: `sudo systemctl start redis-server` or `redis-server`
+
+---
+
+### Step 3: Set Up the Backend (Django Core)
+
+#### 1. Navigate to the `core/` directory:
+```bash
+cd core
+```
+
+#### 2. Create a Virtual Environment:
+```bash
+# Windows
+python -m venv env
+env\Scripts\activate
+
+# macOS / Linux
+python3 -m venv env
+source env/bin/activate
+```
+
+#### 3. Install Python Dependencies:
+```bash
+pip install -r requirements.txt
+```
+
+#### 4. Configure Backend Environment:
+Create a `.env` file in the `core/` folder (or copy `.env.example` to `.env`) and adjust the hosts to point to your local machine (`127.0.0.1`):
+```ini
+DEBUG=True
+SECRET_KEY=dev-secret-key-change-in-production
+ENVIRONMENT=dev
+
+# Database Configuration
+DB_NAME=amardoctor
+DB_USER=postgres
+DB_PASSWORD=your_local_postgres_password_here
+DB_HOST=127.0.0.1
+DB_PORT=5432
+
+# Redis Configuration
+REDIS_HOST=127.0.0.1
+REDIS_PORT=6379
+REDIS_CACHE_DB=1
+REDIS_CELERY_DB=0
+
+# AI & APIs
+DEFAULT_AI_PROVIDER=groq
+GROQ_API_KEY=your_groq_api_key_here
+```
+
+#### 5. Run Migrations & Create Superuser:
+```bash
+# Run Django migrations
+python manage.py migrate
+
+# Create administrator account
+python manage.py createsuperuser
+```
+
+#### 6. Start Django Development Server (ASGI):
+Because Daphne is included in the `INSTALLED_APPS` and `ASGI_APPLICATION` is configured, the standard `runserver` command will boot as an ASGI server (handling both HTTP and WebSocket connections on port `8000`):
+```bash
+python manage.py runserver 0.0.0.0:8000
+```
+
+---
+
+### Step 4: Run Celery Services (Optional / Asynchronous Tasks)
+
+If you need to test background tasks, send emails, or process async workloads:
+
+> [!TIP]
+> Always run Celery commands using `python -m celery` to ensure it executes within the context of your active virtual environment, avoiding path conflicts with system-wide Celery installations.
+
+#### 1. Run Celery Worker
+Open a **new terminal tab**, navigate to `core/`, activate the virtual environment, and run:
+* **macOS / Linux**:
+  ```bash
+  celery -A core worker --loglevel=info
+  ```
+* **Windows** (Celery doesn't support spawn/fork pool well on Windows, use the `-P solo` pool):
+  ```bash
+  celery -A core worker --loglevel=info -P solo
+  ```
+
+#### 2. Run Celery Beat (Scheduler)
+Open a **new terminal tab**, navigate to `core/`, activate the virtual environment, and run:
+```bash
+celery -A core beat --loglevel=info
+```
+
+---
+
+### Step 5: Set Up the Frontend (Next.js)
+
+#### 1. Navigate to the `frontend/` directory:
+```bash
+cd ../frontend
+```
+
+#### 2. Create the Frontend Environment File:
+Create a `.env` file inside the `frontend/` folder:
+```ini
+NEXT_PUBLIC_API_URL=http://127.0.0.1:8000
+```
+
+#### 3. Install Dependencies & Start Dev Server:
+```bash
+# Install Node dependencies
+npm install
+
+# Run the development server
+npm run dev
+```
+
+The Next.js application will start, typically running on [http://localhost:9002](http://localhost:9002).
 
 ---
 

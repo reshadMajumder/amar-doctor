@@ -83,8 +83,22 @@ export default function TriagePage() {
         // 2. Open WebSocket connection
         // Use window.location to derive WS URL dynamically so it always routes
         // through the correct host (Nginx in production), regardless of env vars.
-        const wsProtocol = window.location.protocol === "https:" ? "wss:" : "ws:";
-        const wsHost = window.location.host;
+        // Derive WS URL from NEXT_PUBLIC_API_URL if present, otherwise fallback dynamically
+        const apiBase = process.env.NEXT_PUBLIC_API_URL || "";
+        let wsProtocol = window.location.protocol === "https:" ? "wss:" : "ws:";
+        let wsHost = window.location.host;
+
+        if (apiBase.startsWith("http://") || apiBase.startsWith("https://")) {
+          const url = new URL(apiBase);
+          wsHost = url.host;
+          wsProtocol = url.protocol === "https:" ? "wss:" : "ws:";
+        } else {
+          // Fallback support for direct Next.js development server on port 9002
+          if (wsHost === "localhost:9002" || wsHost === "127.0.0.1:9002") {
+            wsHost = "localhost:8000";
+          }
+        }
+
         const freshToken = getAccessToken() || token;
         const socketUrl = `${wsProtocol}//${wsHost}/ws/triage/${session.id}/?token=${freshToken}`;
 

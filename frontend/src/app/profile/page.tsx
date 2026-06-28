@@ -23,12 +23,29 @@ export default function ProfilePage() {
   const { toast } = useToast();
   
   const [updating, setUpdating] = useState(false);
+  const [walletBalance, setWalletBalance] = useState<string | null>(null);
   
   // Editable form states
   const [fullName, setFullName] = useState("");
   const [specialization, setSpecialization] = useState("");
   const [consultationFee, setConsultationFee] = useState("");
   const [isAvailable, setIsAvailable] = useState(false);
+
+  useEffect(() => {
+    if (user && user.role !== 'doctor') {
+      async function fetchWallet() {
+        try {
+          const res = await api.get("/api/v1/wallets/me/");
+          if (res) {
+            setWalletBalance(res.available_balance || "0.00");
+          }
+        } catch (err) {
+          console.error("Failed to load wallet balance", err);
+        }
+      }
+      fetchWallet();
+    }
+  }, [user]);
 
   // Sync initial state from user object
   useEffect(() => {
@@ -311,7 +328,7 @@ export default function ProfilePage() {
                   {/* Patient Wallet */}
                   <div className="p-5 rounded-2xl bg-primary/5 border border-primary/10">
                     <div className="text-[10px] font-bold text-primary mb-1 uppercase tracking-widest">Active Wallet</div>
-                    <div className="text-2xl font-bold text-slate-900">৳ 700.00</div>
+                    <div className="text-2xl font-bold text-slate-900">৳ {walletBalance !== null ? parseFloat(walletBalance).toFixed(2) : "..."}</div>
                     <div className="text-[10px] text-slate-400 font-semibold mt-1">bKash, Nagad deposits active</div>
                   </div>
 

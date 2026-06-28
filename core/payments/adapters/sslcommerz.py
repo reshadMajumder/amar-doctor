@@ -31,10 +31,10 @@ class SSLCommerzAdapter(PaymentAdapter):
 
             # product metadata
             "shipping_method": "NO",
-            "product_name": f"Consultation with Dr. {payment.appointment.doctor.full_name}",
+            "product_name": f"Consultation with Dr. {payment.appointment.doctor.full_name}" if payment.appointment else "Wallet Deposit",
             "product_category": "Healthcare",
             "product_profile": "non-physical-goods",
-            "value_a": f"appt_id:{payment.appointment.id}"
+            "value_a": f"appt_id:{payment.appointment.id}" if payment.appointment else "wallet_deposit"
         }
 
         # call SSLCommerz endpoint

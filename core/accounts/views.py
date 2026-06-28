@@ -200,88 +200,86 @@ class DoctorListView(APIView):
     permission_classes = [AllowAny]
 
     def get(self, request):
-        from django.core.cache import cache
-        import hashlib
+        from django.db.models import Q
 
         specialization = request.query_params.get('specialization')
         search = request.query_params.get('search')
         doctor_id = request.query_params.get('doctor_id')
 
-        # Generate a unique cache key based on query parameters
-        params_str = f"spec:{specialization or ''}|search:{search or ''}|doc_id:{doctor_id or ''}"
-        params_hash = hashlib.md5(params_str.encode('utf-8')).hexdigest()
-        cache_key = f"doctor_list:{params_hash}"
-
-        # Fetch cached doctor list if available
-        doctors_data = cache.get(cache_key)
+        queryset = DoctorProfile.objects.filter(
+            verification_status='approved',
+            user__is_active=True,
+            user__is_suspended=False
+        )
         
-        if doctors_data is None:
-            from django.db.models import Q
-            queryset = DoctorProfile.objects.filter(
-                verification_status='approved',
-                user__is_active=True,
-                user__is_suspended=False
-            )
-            
-            if doctor_id:
-                if not queryset.filter(user_id=doctor_id).exists():
-                    # Dev/sandbox fallback to display the profile if not approved yet
-                    queryset = DoctorProfile.objects.filter(
-                        user_id=doctor_id,
-                        user__is_active=True,
-                        user__is_suspended=False
-                    )
-                else:
-                    queryset = queryset.filter(user_id=doctor_id)
+        if doctor_id:
+            if not queryset.filter(user_id=doctor_id).exists():
+                # Dev/sandbox fallback to display the profile if not approved yet
+                queryset = DoctorProfile.objects.filter(
+                    user_id=doctor_id,
+                    user__is_active=True,
+                    user__is_suspended=False
+                )
             else:
-                if not queryset.exists():
-                    # Dev/sandbox fallback to display profiles
-                    queryset = DoctorProfile.objects.filter(
-                        user__is_active=True,
-                        user__is_suspended=False
-                    )
-
-            if specialization:
-                spec_clean = specialization.lower().strip()
-                if spec_clean in ['er', 'emergency', 'emergency room', 'icu', 'ccu']:
-                    # Map urgent/ER cases to General Physician gates in a virtual setting
-                    queryset = queryset.filter(specialization__icontains='General Physician')
-                elif len(specialization) <= 2:
-                    queryset = queryset.filter(specialization__iexact=specialization)
-                else:
-                    queryset = queryset.filter(specialization__icontains=specialization)
-            if search:
-                queryset = queryset.filter(
-                    Q(user__full_name__icontains=search) |
-                    Q(specialization__icontains=search)
+                queryset = queryset.filter(user_id=doctor_id)
+        else:
+            if not queryset.exists():
+                # Dev/sandbox fallback to display profiles
+                queryset = DoctorProfile.objects.filter(
+                    user__is_active=True,
+                    user__is_suspended=False
                 )
 
-            serializer = DoctorProfileSerializer(queryset, many=True)
-            doctors_data = serializer.data
-            
-            # Cache the serialized result for 30 seconds
-            cache.set(cache_key, doctors_data, timeout=30)
+        if specialization:
+            spec_clean = specialization.lower().strip()
+            if spec_clean in ['er', 'emergency', 'emergency room', 'icu', 'ccu']:
+                # Map urgent/ER cases to General Physician gates in a virtual setting
+                queryset = queryset.filter(specialization__icontains='General Physician')
+            elif len(specialization) <= 2:
+                queryset = queryset.filter(specialization__iexact=specialization)
+            else:
+                queryset = queryset.filter(specialization__icontains=specialization)
+        if search:
+            queryset = queryset.filter(
+                Q(user__full_name__icontains=search) |
+                Q(specialization__icontains=search)
+            )
 
-        return Response(success_response(data=doctors_data), status=status.HTTP_200_OK)
+        # Pagination support (triggered only if 'page' or 'page_size' in query parameters)
+        if 'page' in request.query_params or 'page_size' in request.query_params:
+            from rest_framework.pagination import PageNumberPagination
+            paginator = PageNumberPagination()
+            paginator.page_size = 4  # default page size matching the frontend layout
+            paginator.page_size_query_param = 'page_size'
+            paginator.max_page_size = 100
+            
+            page = paginator.paginate_queryset(queryset, request, view=self)
+            if page is not None:
+                serializer = DoctorProfileSerializer(page, many=True)
+                return Response(success_response(data={
+                    'count': paginator.page.paginator.count,
+                    'next': paginator.get_next_link(),
+                    'previous': paginator.get_previous_link(),
+                    'current_page': paginator.page.number,
+                    'total_pages': paginator.page.paginator.num_pages,
+                    'results': serializer.data
+                }), status=status.HTTP_200_OK)
+
+        serializer = DoctorProfileSerializer(queryset, many=True)
+        return Response(success_response(data=serializer.data), status=status.HTTP_200_OK)
 
 
 class SpecializationListView(APIView):
     permission_classes = [AllowAny]
 
     def get(self, request):
-        from django.core.cache import cache
-        specializations = cache.get('doctor_specializations')
-        
-        if not specializations:
-            queryset = DoctorProfile.objects.filter(verification_status='approved', is_available=True)
-            if not queryset.exists():
-                queryset = DoctorProfile.objects.all()
+        queryset = DoctorProfile.objects.filter(verification_status='approved', is_available=True)
+        if not queryset.exists():
+            queryset = DoctorProfile.objects.all()
 
-            specializations = list(queryset.values_list('specialization', flat=True).distinct())
-            
-            if "General Physician" not in specializations:
-                specializations.append("General Physician")
-                
-            cache.set('doctor_specializations', specializations, timeout=3600)
+        specializations = list(queryset.values_list('specialization', flat=True).distinct())
+        
+        if "General Physician" not in specializations:
+            specializations.append("General Physician")
 
         return Response(success_response(data=specializations), status=status.HTTP_200_OK)

@@ -9,7 +9,7 @@ from ..services.presence_service import PresenceService
 
 class ChatConsumer(AsyncWebsocketConsumer):
     async def connect(self):
-        self.room_id = self.scope['url_route']['kwargs']['room_id']
+        self.room_id = int(self.scope['url_route']['kwargs']['room_id'])
         self.room_group_name = f"chat_{self.room_id}"
         self.user = self.scope['user']
 
@@ -36,14 +36,21 @@ class ChatConsumer(AsyncWebsocketConsumer):
 
     async def disconnect(self, close_code):
         if hasattr(self, 'room_group_name'):
-            # Update online status
-            await self.update_presence(False)
+            import asyncio
+            # Update online status with a strict timeout to prevent hangs during DB pool shutdowns
+            try:
+                await asyncio.wait_for(self.update_presence(False), timeout=1.0)
+            except Exception:
+                pass
             
             # Leave room group
-            await self.channel_layer.group_discard(
-                self.room_group_name,
-                self.channel_name
-            )
+            try:
+                await self.channel_layer.group_discard(
+                    self.room_group_name,
+                    self.channel_name
+                )
+            except Exception:
+                pass
 
     async def receive(self, text_data):
         try:
@@ -202,7 +209,7 @@ class ChatConsumer(AsyncWebsocketConsumer):
 
     @database_sync_to_async
     def is_member(self):
-        return self.room.patient == self.user or self.room.doctor == self.user
+        return self.room.patient_id == self.user.id or self.room.doctor_id == self.user.id
 
     @database_sync_to_async
     def save_message(self, content, msg_type):
