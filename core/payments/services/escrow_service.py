@@ -148,6 +148,20 @@ class EscrowService:
             metadata={'reason': reason}
         )
 
+        # Decrement Doctor's pending balance
+        from wallets.models import DoctorWallet
+        try:
+            commission_rate = PlatformSettings.get_commission_rate()
+            total_amount = payment_tx.amount
+            platform_fee = (total_amount * commission_rate).quantize(Decimal('0.01'))
+            doctor_amount = total_amount - platform_fee
+
+            doctor_wallet = DoctorWallet.objects.select_for_update().get(doctor=appointment.doctor)
+            doctor_wallet.pending_balance = max(Decimal('0.00'), doctor_wallet.pending_balance - doctor_amount)
+            doctor_wallet.save()
+        except DoctorWallet.DoesNotExist:
+            pass
+
         # Update Payment Transaction
         payment_tx.status = PaymentTransaction.STATUS_REFUNDED
         payment_tx.refunded_at = timezone.now()

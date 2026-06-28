@@ -83,17 +83,11 @@ PUBLIC_DOMAIN=http://localhost:8000
 
 ### 2. Start Services
 
-To start all development services (databases, application, workers, and nginx) with a single command:
+To start all development services (databases, application, workers, and Nginx proxy) with a single command:
 
 ```bash
-docker compose -f docker-compose.dev.yml --profile app --profile worker up --build
-```
-
-Alternatively, you can run the helper script in your terminal:
-
-```bash
-chmod +x dev.sh
-./dev.sh
+chmod +x run.sh
+./run.sh dev
 ```
 
 ### 3. Access Application
@@ -342,14 +336,11 @@ PUBLIC_DOMAIN=https://amardoc.reshad.dev
 
 ### 3. Deploy
 
-Deploy the production services using docker compose:
+Deploy the production services in the background using the unified runner script (this automatically handles syncing environment configurations and setting up self-signed fallback SSL certificates if needed):
 
 ```bash
-# Start all services in the background and build images if not already built
-docker compose -f docker-compose.prod.yml up --build -d
-
-# Verify containers are running
-docker compose -f docker-compose.prod.yml ps
+chmod +x run.sh
+./run.sh prod
 ```
 
 Expected status: All services should be **Up** and show as **healthy** (or starting up).

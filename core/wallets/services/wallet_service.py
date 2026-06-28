@@ -49,6 +49,8 @@ class WalletService:
         if direction == 'credit':
             wallet.available_balance += amount
             wallet.lifetime_earnings += amount
+            if tx_type == 'consultation_release':
+                wallet.pending_balance = max(Decimal('0.00'), wallet.pending_balance - amount)
         else:
             if wallet.available_balance < amount:
                 raise ValueError("Insufficient balance in doctor wallet.")
@@ -109,7 +111,18 @@ class WalletService:
         """
         # Ensure wallets exist
         PatientWallet.objects.get_or_create(patient=appointment.patient)
-        DoctorWallet.objects.get_or_create(doctor=appointment.doctor)
+        doctor_wallet, _ = DoctorWallet.objects.select_for_update().get_or_create(doctor=appointment.doctor)
         PlatformWallet.get_instance()
+        
+        # Calculate doctor's net share (80% of total consultation fee)
+        from payments.models import PlatformSettings
+        commission_rate = PlatformSettings.get_commission_rate()
+        total_amount = appointment.consultation_fee
+        platform_fee = (total_amount * commission_rate).quantize(Decimal('0.01'))
+        doctor_amount = total_amount - platform_fee
+
+        # Add to doctor's pending balance
+        doctor_wallet.pending_balance += doctor_amount
+        doctor_wallet.save()
         
         return True

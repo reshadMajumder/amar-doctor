@@ -7,8 +7,8 @@ class PlatformSettings(models.Model):
     consultation_commission_percentage = models.DecimalField(
         max_digits=5, 
         decimal_places=2, 
-        default=Decimal('15.00'),
-        help_text="Default platform commission percentage (e.g. 15.00 for 15%)"
+        default=Decimal('20.00'),
+        help_text="Default platform commission percentage (e.g. 20.00 for 20%)"
     )
     updated_at = models.DateTimeField(auto_now=True)
 
@@ -17,7 +17,10 @@ class PlatformSettings(models.Model):
 
     @classmethod
     def get_commission_rate(cls):
-        instance, created = cls.objects.get_or_create(pk=1)
+        instance, created = cls.objects.get_or_create(pk=1, defaults={'consultation_commission_percentage': Decimal('20.00')})
+        if not created and instance.consultation_commission_percentage == Decimal('15.00'):
+            instance.consultation_commission_percentage = Decimal('20.00')
+            instance.save()
         return instance.consultation_commission_percentage / Decimal('100.00')
 
 class PaymentTransaction(models.Model):

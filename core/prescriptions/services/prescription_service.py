@@ -63,6 +63,14 @@ class PrescriptionService:
             payload={'prescription_id': prescription.id, 'appointment_id': prescription.appointment.id}
         )
         
+        # Automatically transition appointment status to completed and release payment
+        appointment = prescription.appointment
+        if appointment.status != 'completed':
+            from appointments.services.appointment_service import AppointmentService
+            if appointment.status == 'confirmed':
+                AppointmentService.update_status(appointment, 'in_progress', prescription.doctor)
+            AppointmentService.update_status(appointment, 'completed', prescription.doctor)
+        
         # Future: Generate PDF task
         from .prescription_pdf_service import generate_pdf_task
         generate_pdf_task.delay(prescription.id)

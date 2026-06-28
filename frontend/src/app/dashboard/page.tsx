@@ -207,6 +207,7 @@ export default function Dashboard() {
   const [actionInProgress, setActionInProgress] = useState<string | null>(null);
   const [activeTab, setActiveTab] = useState<'pending' | 'active' | 'history'>('pending');
   const [walletBalance, setWalletBalance] = useState<string | null>(null);
+  const [pendingBalance, setPendingBalance] = useState<string | null>(null);
   const [notifications, setNotifications] = useState<any[]>([]);
   const [isNotifOpen, setIsNotifOpen] = useState(false);
 
@@ -215,8 +216,10 @@ export default function Dashboard() {
     async function fetchWallet() {
       try {
         const res = await api.get("/api/v1/wallets/me/");
-        if (res) {
-          setWalletBalance(res.available_balance || "0.00");
+        const data = res.data || res;
+        if (data) {
+          setWalletBalance(data.available_balance || "0.00");
+          setPendingBalance(data.pending_balance || "0.00");
         }
       } catch (err) {
         console.error("Failed to load wallet balance", err);
@@ -461,9 +464,6 @@ export default function Dashboard() {
       activeTab === 'active' ? activeAppointments :
       historyAppointments;
 
-    const totalRevenue = appointments
-      .filter(app => ['paid_held', 'released'].includes(app.payment_status))
-      .reduce((sum, app) => sum + parseFloat(app.consultation_fee || 0), 0);
 
     const liveTriageReports = appointments
       .filter(app => app.status === 'pending' && app.ai_report_details)
@@ -528,8 +528,8 @@ export default function Dashboard() {
                 <DollarSign className="w-5 h-5 md:w-6 md:h-6" />
               </div>
               <div className="min-w-0">
-                <div className="text-[9px] md:text-xs font-bold text-slate-400 uppercase tracking-wider">Total Revenue</div>
-                <div className="text-sm md:text-xl font-extrabold text-slate-950 truncate">৳ {totalRevenue.toLocaleString()}</div>
+                <div className="text-[9px] md:text-xs font-bold text-slate-400 uppercase tracking-wider">Wallet Balance</div>
+                <div className="text-sm md:text-xl font-extrabold text-slate-950 truncate">৳ {parseFloat(walletBalance || "0.00").toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</div>
               </div>
             </Card>
 
@@ -558,8 +558,8 @@ export default function Dashboard() {
                 <TrendingUp className="w-5 h-5 md:w-6 md:h-6" />
               </div>
               <div className="min-w-0">
-                <div className="text-[9px] md:text-xs font-bold text-slate-400 uppercase tracking-wider">Monthly Growth</div>
-                <div className="text-sm md:text-xl font-extrabold text-slate-950 truncate">+12.5%</div>
+                <div className="text-[9px] md:text-xs font-bold text-slate-400 uppercase tracking-wider">Pending Payout</div>
+                <div className="text-sm md:text-xl font-extrabold text-slate-950 truncate">৳ {parseFloat(pendingBalance || "0.00").toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</div>
               </div>
             </Card>
           </div>

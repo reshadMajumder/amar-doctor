@@ -27,6 +27,7 @@ class AppointmentSerializer(serializers.ModelSerializer):
     chat_room_id = serializers.IntegerField(source='chat_room.id', read_only=True, allow_null=True)
     ai_report_details = AIReportSerializer(source='ai_report', read_only=True, allow_null=True)
     has_prescription = serializers.SerializerMethodField()
+    prescription_id = serializers.SerializerMethodField()
     
     class Meta:
         model = Appointment
@@ -35,6 +36,11 @@ class AppointmentSerializer(serializers.ModelSerializer):
 
     def get_has_prescription(self, obj):
         return hasattr(obj, 'prescription')
+
+    def get_prescription_id(self, obj):
+        if hasattr(obj, 'prescription'):
+            return obj.prescription.id
+        return None
 
     def validate_no_prescription_required(self, value):
         request = self.context.get('request')

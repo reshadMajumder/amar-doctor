@@ -27,9 +27,9 @@ class PrescriptionPDFService:
         styles = getSampleStyleSheet()
         
         # Custom Styles
-        title_style = ParagraphStyle('TitleStyle', parent=styles['Heading1'], fontSize=18, textColor=colors.hexColor('#2c3e50'), spaceAfter=12)
+        title_style = ParagraphStyle('TitleStyle', parent=styles['Heading1'], fontSize=18, textColor=colors.HexColor('#2c3e50'), spaceAfter=12)
         info_style = ParagraphStyle('InfoStyle', parent=styles['Normal'], fontSize=10, leading=14)
-        rx_style = ParagraphStyle('RxStyle', parent=styles['Heading1'], fontSize=24, textColor=colors.hexColor('#2c3e50'), spaceBefore=20, spaceAfter=10)
+        rx_style = ParagraphStyle('RxStyle', parent=styles['Heading1'], fontSize=24, textColor=colors.HexColor('#2c3e50'), spaceBefore=20, spaceAfter=10)
 
         elements = []
 
@@ -54,7 +54,7 @@ class PrescriptionPDFService:
         ]))
         elements.append(t)
         elements.append(Spacer(1, 12))
-        elements.append(Table([['']], colWidths=[450], rowHeights=[1], style=[('LINEBELOW', (0,0), (-1,-1), 1, colors.hexColor('#2c3e50'))]))
+        elements.append(Table([['']], colWidths=[450], rowHeights=[1], style=[('LINEBELOW', (0,0), (-1,-1), 1, colors.HexColor('#2c3e50'))]))
         elements.append(Spacer(1, 12))
 
         # Diagnosis
@@ -77,8 +77,8 @@ class PrescriptionPDFService:
         
         med_table = Table(med_data, colWidths=[200, 80, 80, 90])
         med_table.setStyle(TableStyle([
-            ('BACKGROUND', (0,0), (-1,0), colors.hexColor('#f8f9fa')),
-            ('TEXTCOLOR', (0,0), (-1,0), colors.hexColor('#2c3e50')),
+            ('BACKGROUND', (0,0), (-1,0), colors.HexColor('#f8f9fa')),
+            ('TEXTCOLOR', (0,0), (-1,0), colors.HexColor('#2c3e50')),
             ('ALIGN', (0,0), (-1,-1), 'LEFT'),
             ('FONTNAME', (0,0), (-1,0), 'Helvetica-Bold'),
             ('FONTSIZE', (0,0), (-1,0), 10),

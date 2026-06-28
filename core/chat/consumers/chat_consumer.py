@@ -9,30 +9,48 @@ from ..services.presence_service import PresenceService
 
 class ChatConsumer(AsyncWebsocketConsumer):
     async def connect(self):
-        self.room_id = int(self.scope['url_route']['kwargs']['room_id'])
-        self.room_group_name = f"chat_{self.room_id}"
-        self.user = self.scope['user']
+        try:
+            self.room_id = int(self.scope['url_route']['kwargs']['room_id'])
+            self.room_group_name = f"chat_{self.room_id}"
+            self.user = self.scope['user']
+            print(f"DEBUG ChatConsumer: Connect request for room {self.room_id} from user: {self.user} (Anonymous: {self.user.is_anonymous})")
 
-        if self.user.is_anonymous:
-            await self.close()
-            return
+            if self.user.is_anonymous:
+                print("DEBUG ChatConsumer: Rejecting anonymous connection.")
+                await self.close(code=4001)
+                return
 
-        # Validate membership and room existence
-        self.room = await self.get_room()
-        if not self.room or not await self.is_member():
-            await self.close()
-            return
+            # Validate membership and room existence
+            self.room = await self.get_room()
+            if not self.room:
+                print(f"DEBUG ChatConsumer: Room {self.room_id} not found in DB.")
+                await self.close(code=4004)
+                return
 
-        # Join room group
-        await self.channel_layer.group_add(
-            self.room_group_name,
-            self.channel_name
-        )
+            member_check = await self.is_member()
+            print(f"DEBUG ChatConsumer: Membership check result: {member_check} (room.patient_id={self.room.patient_id}, room.doctor_id={self.room.doctor_id}, user.id={self.user.id})")
+            if not member_check:
+                print(f"DEBUG ChatConsumer: Rejecting connection - user {self.user.id} is not a participant in room {self.room_id}.")
+                await self.close(code=4003)
+                return
 
-        await self.accept()
-        
-        # Update online status
-        await self.update_presence(True)
+            # Join room group
+            await self.channel_layer.group_add(
+                self.room_group_name,
+                self.channel_name
+            )
+
+            await self.accept()
+            print(f"DEBUG ChatConsumer: Accepted connection for room {self.room_id}")
+            
+            # Update online status
+            await self.update_presence(True)
+            print(f"DEBUG ChatConsumer: Presence set to online for room {self.room_id}")
+        except Exception as e:
+            print(f"DEBUG ChatConsumer: Exception during connection handshake: {e}")
+            import traceback
+            traceback.print_exc()
+            await self.close(code=4500)
 
     async def disconnect(self, close_code):
         if hasattr(self, 'room_group_name'):

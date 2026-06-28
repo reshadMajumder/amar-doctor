@@ -124,29 +124,29 @@ if 'test' in sys.argv or 'pytest' in sys.modules:
         }
     }
 else:
-    # DATABASES = {
-    #     'default': {
-    #         'ENGINE': 'django.db.backends.postgresql',
-    #         'NAME': os.getenv('DB_NAME', 'amardoctor'),
-    #         'USER': os.getenv('DB_USER', 'postgres'),
-    #         'PASSWORD': os.getenv('DB_PASSWORD', 'postgres'),
-    #         'HOST': os.getenv('DB_HOST', '127.0.0.1'),
-    #         'PORT': os.getenv('DB_PORT', '5432'),
-    #     }
-    # }
     DATABASES = {
         'default': {
             'ENGINE': 'django.db.backends.postgresql',
-            'NAME': 'neondb',
-            'USER': 'neondb_owner',
-            'PASSWORD': 'npg_RvJbhX4l8ETC',
-            'HOST': 'ep-dawn-flower-apn0427b-pooler.c-7.us-east-1.aws.neon.tech',
-            'PORT': '5432',
-            'OPTIONS': {
-                'sslmode': 'require',
-            },
+            'NAME': os.getenv('DB_NAME', 'amardoctor'),
+            'USER': os.getenv('DB_USER', 'postgres'),
+            'PASSWORD': os.getenv('DB_PASSWORD', 'postgres'),
+            'HOST': os.getenv('DB_HOST', '127.0.0.1'),
+            'PORT': os.getenv('DB_PORT', '5432'),
         }
     }
+    # DATABASES = {
+    #     'default': {
+    #         'ENGINE': 'django.db.backends.postgresql',
+    #         'NAME': 'neondb',
+    #         'USER': 'neondb_owner',
+    #         'PASSWORD': 'npg_RvJbhX4l8ETC',
+    #         'HOST': 'ep-dawn-flower-apn0427b-pooler.c-7.us-east-1.aws.neon.tech',
+    #         'PORT': '5432',
+    #         'OPTIONS': {
+    #             'sslmode': 'require',
+    #         },
+    #     }
+    # }
 
 
 # Password validation
